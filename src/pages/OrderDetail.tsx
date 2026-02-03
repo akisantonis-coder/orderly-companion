@@ -5,6 +5,7 @@ import { Layout } from '@/components/Layout';
 import { OrderItemRow } from '@/components/OrderItemRow';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
+import { SendOrderDialog } from '@/components/SendOrderDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,13 +64,13 @@ export default function OrderDetail() {
     }
   };
 
-  const handleSendOrder = async () => {
+  const handleSendOrder = async (sendCopyToUser: boolean, userEmail?: string) => {
     try {
-      await sendOrder.mutateAsync(id!);
+      await sendOrder.mutateAsync({ orderId: id!, sendCopyToUser, userEmail });
       toast.success('Η παραγγελία εστάλη επιτυχώς');
       navigate('/orders');
-    } catch (error) {
-      toast.error('Σφάλμα κατά την αποστολή');
+    } catch (error: any) {
+      toast.error(error.message || 'Σφάλμα κατά την αποστολή');
     }
   };
 
@@ -212,27 +213,14 @@ export default function OrderDetail() {
       </AlertDialog>
 
       {/* Send Confirmation */}
-      <AlertDialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Αποστολή παραγγελίας</AlertDialogTitle>
-            <AlertDialogDescription>
-              Θέλετε να στείλετε την παραγγελία στον προμηθευτή "{order.supplier.name}";
-              {order.supplier.email && (
-                <span className="block mt-2">
-                  Email: {order.supplier.email}
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Ακύρωση</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSendOrder}>
-              Αποστολή
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SendOrderDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        supplierName={order.supplier.name}
+        supplierEmail={order.supplier.email}
+        onConfirm={handleSendOrder}
+        isLoading={sendOrder.isPending}
+      />
     </Layout>
   );
 }

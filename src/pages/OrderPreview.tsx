@@ -3,21 +3,12 @@ import { ArrowLeft, Send, FileText, Mail } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
+import { SendOrderDialog } from '@/components/SendOrderDialog';
 import { useOrder, useSendOrder } from '@/hooks/useOrders';
 import { getFullUnitName } from '@/types';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { useState } from 'react';
 
 export default function OrderPreview() {
@@ -28,13 +19,13 @@ export default function OrderPreview() {
   const { data: order, isLoading } = useOrder(id);
   const sendOrder = useSendOrder();
 
-  const handleSendOrder = async () => {
+  const handleSendOrder = async (sendCopyToUser: boolean, userEmail?: string) => {
     try {
-      await sendOrder.mutateAsync(id!);
+      await sendOrder.mutateAsync({ orderId: id!, sendCopyToUser, userEmail });
       toast.success('Η παραγγελία εστάλη επιτυχώς');
       navigate('/orders');
-    } catch (error) {
-      toast.error('Σφάλμα κατά την αποστολή');
+    } catch (error: any) {
+      toast.error(error.message || 'Σφάλμα κατά την αποστολή');
     }
   };
 
@@ -181,27 +172,14 @@ export default function OrderPreview() {
       </div>
 
       {/* Send Confirmation */}
-      <AlertDialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Αποστολή παραγγελίας</AlertDialogTitle>
-            <AlertDialogDescription>
-              Θέλετε να στείλετε την παραγγελία στον προμηθευτή "{order.supplier.name}";
-              {order.supplier.email && (
-                <span className="block mt-2">
-                  Email: {order.supplier.email}
-                </span>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Ακύρωση</AlertDialogCancel>
-            <AlertDialogAction onClick={handleSendOrder}>
-              Αποστολή
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <SendOrderDialog
+        open={sendDialogOpen}
+        onOpenChange={setSendDialogOpen}
+        supplierName={order.supplier.name}
+        supplierEmail={order.supplier.email}
+        onConfirm={handleSendOrder}
+        isLoading={sendOrder.isPending}
+      />
     </Layout>
   );
 }

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Order, OrderItem, OrderWithDetails, Product, UnitAbbreviation } from '@/types';
+import type { Order, OrderItem, OrderWithDetails, UnitAbbreviation } from '@/types';
 
 export function useDraftOrders() {
   return useQuery({
@@ -256,22 +256,23 @@ export function useSendOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (orderId: string): Promise<Order> => {
-      const { data, error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'sent',
-          sent_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
+    mutationFn: async ({ 
+      orderId, 
+      sendCopyToUser = false, 
+      userEmail 
+    }: { 
+      orderId: string; 
+      sendCopyToUser?: boolean; 
+      userEmail?: string; 
+    }): Promise<{ success: boolean; supplierEmail?: string }> => {
+      const { data, error } = await supabase.functions.invoke('send-order-email', {
+        body: { orderId, sendCopyToUser, userEmail }
+      });
 
       if (error) throw error;
-      return {
-        ...data,
-        status: data.status as Order['status']
-      };
+      if (data.error) throw new Error(data.error);
+      
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draft-orders'] });
