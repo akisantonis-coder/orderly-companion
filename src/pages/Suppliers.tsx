@@ -1,13 +1,19 @@
-import { Truck } from 'lucide-react';
+import { useState } from 'react';
+import { Truck, Plus } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { SupplierCard } from '@/components/SupplierCard';
+import { SupplierDialog } from '@/components/SupplierDialog';
 import { EmptyState } from '@/components/EmptyState';
-import { useSuppliers } from '@/hooks/useSuppliers';
+import { Button } from '@/components/ui/button';
+import { useSuppliers, useCreateSupplier } from '@/hooks/useSuppliers';
 import { useDraftOrders } from '@/hooks/useOrders';
+import { toast } from 'sonner';
 
 export default function Suppliers() {
   const { data: suppliers = [], isLoading } = useSuppliers();
   const { data: draftOrders = [] } = useDraftOrders();
+  const createSupplier = useCreateSupplier();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Count orders per supplier
   const orderCountBySupplier = draftOrders.reduce((acc, order) => {
@@ -15,15 +21,31 @@ export default function Suppliers() {
     return acc;
   }, {} as Record<string, number>);
 
+  const handleCreateSupplier = async (data: { name: string; email?: string; phone?: string }) => {
+    try {
+      await createSupplier.mutateAsync(data);
+      toast.success('Ο προμηθευτής δημιουργήθηκε');
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη δημιουργία');
+      throw error;
+    }
+  };
+
   return (
     <Layout>
       <div className="container py-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Προμηθευτές</h1>
-          <p className="text-muted-foreground mt-1">
-            {suppliers.length} καταχωρημένοι προμηθευτές
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Προμηθευτές</h1>
+            <p className="text-muted-foreground mt-1">
+              {suppliers.length} καταχωρημένοι προμηθευτές
+            </p>
+          </div>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Νέος
+          </Button>
         </div>
 
         {/* Suppliers List */}
@@ -47,10 +69,23 @@ export default function Suppliers() {
           <EmptyState
             icon={Truck}
             title="Δεν υπάρχουν προμηθευτές"
-            description="Δεν έχουν καταχωρηθεί προμηθευτές ακόμη"
+            description="Δημιουργήστε τον πρώτο σας προμηθευτή"
+            action={
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Νέος Προμηθευτής
+              </Button>
+            }
           />
         )}
       </div>
+
+      <SupplierDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleCreateSupplier}
+        isLoading={createSupplier.isPending}
+      />
     </Layout>
   );
 }

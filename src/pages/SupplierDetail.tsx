@@ -1,30 +1,55 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Package, Plus } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Package, Plus, Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { ProductCard } from '@/components/ProductCard';
 import { OrderCard } from '@/components/OrderCard';
 import { AddProductDialog } from '@/components/AddProductDialog';
+import { SupplierDialog } from '@/components/SupplierDialog';
+import { ProductDialog } from '@/components/ProductDialog';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSupplier } from '@/hooks/useSuppliers';
-import { useProducts } from '@/hooks/useProducts';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useSupplier, useUpdateSupplier, useDeleteSupplier } from '@/hooks/useSuppliers';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
 import { useDraftOrders, useCreateOrder, useAddOrderItem } from '@/hooks/useOrders';
-import type { ProductWithSupplier } from '@/types';
+import type { ProductWithSupplier, Product, UnitAbbreviation } from '@/types';
 import { toast } from 'sonner';
 
 export default function SupplierDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  
+  // Dialog states
   const [selectedProduct, setSelectedProduct] = useState<ProductWithSupplier | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deleteSupplierOpen, setDeleteSupplierOpen] = useState(false);
+  const [deleteProductOpen, setDeleteProductOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
+  // Queries
   const { data: supplier, isLoading: supplierLoading } = useSupplier(id);
   const { data: products = [], isLoading: productsLoading } = useProducts(id);
   const { data: draftOrders = [] } = useDraftOrders();
+  
+  // Mutations
   const createOrder = useCreateOrder();
   const addOrderItem = useAddOrderItem();
+  const updateSupplier = useUpdateSupplier();
+  const deleteSupplier = useDeleteSupplier();
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
 
   const supplierOrders = draftOrders.filter(o => o.supplier_id === id);
   const selectedProductIds = new Set(
@@ -36,7 +61,7 @@ export default function SupplierDetail() {
       ...product,
       supplier: supplier!,
     } as ProductWithSupplier);
-    setDialogOpen(true);
+    setAddProductDialogOpen(true);
   };
 
   const handleAddProduct = async (product: ProductWithSupplier, quantity: number) => {
@@ -62,6 +87,75 @@ export default function SupplierDetail() {
     } catch (error) {
       toast.error('Σφάλμα κατά την προσθήκη');
     }
+  };
+
+  const handleUpdateSupplier = async (data: { name: string; email?: string; phone?: string }) => {
+    if (!id) return;
+    try {
+      await updateSupplier.mutateAsync({ id, data });
+      toast.success('Ο προμηθευτής ενημερώθηκε');
+    } catch (error) {
+      toast.error('Σφάλμα κατά την ενημέρωση');
+      throw error;
+    }
+  };
+
+  const handleDeleteSupplier = async () => {
+    if (!id) return;
+    try {
+      await deleteSupplier.mutateAsync(id);
+      toast.success('Ο προμηθευτής διαγράφηκε');
+      navigate('/suppliers');
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη διαγραφή. Βεβαιωθείτε ότι δεν υπάρχουν προϊόντα ή παραγγελίες.');
+    }
+  };
+
+  const handleCreateProduct = async (data: { name: string; unit: UnitAbbreviation }) => {
+    if (!id) return;
+    try {
+      await createProduct.mutateAsync({ ...data, supplier_id: id });
+      toast.success('Το προϊόν δημιουργήθηκε');
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη δημιουργία');
+      throw error;
+    }
+  };
+
+  const handleUpdateProduct = async (data: { name: string; unit: UnitAbbreviation }) => {
+    if (!editingProduct) return;
+    try {
+      await updateProduct.mutateAsync({ id: editingProduct.id, data });
+      toast.success('Το προϊόν ενημερώθηκε');
+      setEditingProduct(null);
+    } catch (error) {
+      toast.error('Σφάλμα κατά την ενημέρωση');
+      throw error;
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+    try {
+      await deleteProduct.mutateAsync(productToDelete.id);
+      toast.success('Το προϊόν διαγράφηκε');
+      setProductToDelete(null);
+      setDeleteProductOpen(false);
+    } catch (error) {
+      toast.error('Σφάλμα κατά τη διαγραφή');
+    }
+  };
+
+  const openEditProduct = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingProduct(product);
+    setProductDialogOpen(true);
+  };
+
+  const openDeleteProduct = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProductToDelete(product);
+    setDeleteProductOpen(true);
   };
 
   if (supplierLoading) {
@@ -121,6 +215,27 @@ export default function SupplierDetail() {
               )}
             </div>
           </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSupplierDialogOpen(true)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Επεξεργασία
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setDeleteSupplierOpen(true)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Διαγραφή
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -135,7 +250,20 @@ export default function SupplierDetail() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="products" className="space-y-2 mt-4">
+          <TabsContent value="products" className="space-y-4 mt-4">
+            <div className="flex justify-end">
+              <Button 
+                size="sm" 
+                onClick={() => {
+                  setEditingProduct(null);
+                  setProductDialogOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Νέο Προϊόν
+              </Button>
+            </div>
+            
             {productsLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => (
@@ -143,19 +271,49 @@ export default function SupplierDetail() {
                 ))}
               </div>
             ) : products.length > 0 ? (
-              products.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{ ...product, supplier } as ProductWithSupplier}
-                  isSelected={selectedProductIds.has(product.id)}
-                  onSelect={() => handleProductSelect(product as ProductWithSupplier)}
-                />
-              ))
+              <div className="space-y-2">
+                {products.map((product) => (
+                  <div key={product.id} className="relative group">
+                    <ProductCard
+                      product={{ ...product, supplier } as ProductWithSupplier}
+                      isSelected={selectedProductIds.has(product.id)}
+                      onSelect={() => handleProductSelect(product as ProductWithSupplier)}
+                    />
+                    <div className="absolute right-14 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => openEditProduct(product, e)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={(e) => openDeleteProduct(product, e)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <EmptyState
                 icon={Package}
                 title="Δεν υπάρχουν προϊόντα"
-                description="Δεν έχουν καταχωρηθεί προϊόντα για αυτόν τον προμηθευτή"
+                description="Προσθέστε το πρώτο προϊόν για αυτόν τον προμηθευτή"
+                action={
+                  <Button onClick={() => {
+                    setEditingProduct(null);
+                    setProductDialogOpen(true);
+                  }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Νέο Προϊόν
+                  </Button>
+                }
               />
             )}
           </TabsContent>
@@ -182,11 +340,54 @@ export default function SupplierDetail() {
         </Tabs>
       </div>
 
+      {/* Add product to order dialog */}
       <AddProductDialog
         product={selectedProduct}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        open={addProductDialogOpen}
+        onOpenChange={setAddProductDialogOpen}
         onConfirm={handleAddProduct}
+      />
+
+      {/* Supplier edit dialog */}
+      <SupplierDialog
+        open={supplierDialogOpen}
+        onOpenChange={setSupplierDialogOpen}
+        supplier={supplier}
+        onSubmit={handleUpdateSupplier}
+        isLoading={updateSupplier.isPending}
+      />
+
+      {/* Product create/edit dialog */}
+      <ProductDialog
+        open={productDialogOpen}
+        onOpenChange={(open) => {
+          setProductDialogOpen(open);
+          if (!open) setEditingProduct(null);
+        }}
+        product={editingProduct}
+        supplierId={id!}
+        onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
+        isLoading={createProduct.isPending || updateProduct.isPending}
+      />
+
+      {/* Delete supplier confirmation */}
+      <DeleteConfirmDialog
+        open={deleteSupplierOpen}
+        onOpenChange={setDeleteSupplierOpen}
+        title="Διαγραφή Προμηθευτή"
+        description="Είστε σίγουροι ότι θέλετε να διαγράψετε αυτόν τον προμηθευτή; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί."
+        onConfirm={handleDeleteSupplier}
+        isLoading={deleteSupplier.isPending}
+      />
+
+      {/* Delete product confirmation */}
+      <DeleteConfirmDialog
+        open={deleteProductOpen}
+        onOpenChange={setDeleteProductOpen}
+        title="Διαγραφή Προϊόντος"
+        description={`Είστε σίγουροι ότι θέλετε να διαγράψετε το προϊόν "${productToDelete?.name}";`}
+        onConfirm={handleDeleteProduct}
+        isLoading={deleteProduct.isPending}
       />
     </Layout>
   );
