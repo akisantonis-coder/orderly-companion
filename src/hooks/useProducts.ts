@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Product, ProductWithSupplier, UnitAbbreviation } from '@/types';
 
@@ -74,5 +74,75 @@ export function useProductSearch(searchTerm: string) {
       }));
     },
     enabled: searchTerm.trim().length >= 2,
+  });
+}
+
+export function useCreateProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { name: string; supplier_id: string; unit: UnitAbbreviation }) => {
+      const { data: product, error } = await supabase
+        .from('products')
+        .insert({
+          name: data.name,
+          supplier_id: data.supplier_id,
+          unit: data.unit,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return product;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products', variables.supplier_id] });
+      queryClient.invalidateQueries({ queryKey: ['products-with-suppliers'] });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name: string; unit: UnitAbbreviation } }) => {
+      const { data: product, error } = await supabase
+        .from('products')
+        .update({
+          name: data.name,
+          unit: data.unit,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return product;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-with-suppliers'] });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-with-suppliers'] });
+    },
   });
 }
