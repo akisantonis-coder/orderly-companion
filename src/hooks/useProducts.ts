@@ -50,10 +50,16 @@ export function useProductsWithSuppliers() {
 }
 
 export function useProductSearch(searchTerm: string) {
+  // Sanitize and validate search input
+  const sanitizedTerm = searchTerm
+    .trim()
+    .slice(0, 100) // Max 100 characters
+    .replace(/[%_]/g, ''); // Remove LIKE wildcards that could affect query
+
   return useQuery({
-    queryKey: ['product-search', searchTerm],
+    queryKey: ['product-search', sanitizedTerm],
     queryFn: async (): Promise<ProductWithSupplier[]> => {
-      if (!searchTerm.trim()) return [];
+      if (sanitizedTerm.length < 2) return [];
 
       const { data, error } = await supabase
         .from('products')
@@ -61,7 +67,7 @@ export function useProductSearch(searchTerm: string) {
           *,
           supplier:suppliers(*)
         `)
-        .ilike('name', `%${searchTerm}%`)
+        .ilike('name', `%${sanitizedTerm}%`)
         .order('name')
         .limit(20);
 
@@ -73,7 +79,7 @@ export function useProductSearch(searchTerm: string) {
         supplier: p.supplier as ProductWithSupplier['supplier']
       }));
     },
-    enabled: searchTerm.trim().length >= 2,
+    enabled: sanitizedTerm.length >= 2 && sanitizedTerm.length <= 100,
   });
 }
 
