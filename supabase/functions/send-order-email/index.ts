@@ -154,8 +154,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { orderId, sendCopyToUser, userEmail }: SendOrderRequest = await req.json();
 
-    if (!orderId) {
-      throw new Error("Order ID is required");
+    // Validate orderId format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!orderId || !uuidRegex.test(orderId)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid order ID format" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate userEmail if sendCopyToUser is requested
+    if (sendCopyToUser) {
+      if (!userEmail) {
+        return new Response(
+          JSON.stringify({ error: "User email is required when sending copy" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(userEmail) || userEmail.length > 254) {
+        return new Response(
+          JSON.stringify({ error: "Invalid email format" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     // Fetch order with supplier and items
