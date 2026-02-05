@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, FileText, Mail } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Mail, Share2, Copy, Check } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,69 @@ import { el } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
+// Generate order text for sharing
+const generateOrderText = (order: any): string => {
+  const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
+  const itemsList = order.items
+    ?.map((item: any) => 
+      `• ${item.product.name}: ${item.quantity} ${getFullUnitName(item.product.unit, item.quantity)}`
+    )
+    .join('\n');
+
+  return `📦 ΠΑΡΑΓΓΕΛΙΑ - ${order.supplier.name}
+
+Ημερομηνία: ${date}
+
+Προϊόντα:
+${itemsList}
+
+---
+Αποστολή από την εφαρμογή Αποθήκη`;
+};
+
 export default function OrderPreview() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    if (!order) return;
+    
+    const text = generateOrderText(order);
+    
+    // Try Web Share API first (works on mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Παραγγελία - ${order.supplier.name}`,
+          text: text,
+        });
+        return;
+      } catch (error) {
+        // User cancelled or error - fall back to clipboard
+        if ((error as Error).name === 'AbortError') return;
+      }
+    }
+    
+    // Fallback: copy to clipboard
+    await handleCopy();
+  };
+
+  const handleCopy = async () => {
+    if (!order) return;
+    
+    const text = generateOrderText(order);
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success('Η παραγγελία αντιγράφηκε');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      toast.error('Σφάλμα κατά την αντιγραφή');
+    }
+  };
 
   const { data: order, isLoading } = useOrder(id);
   const sendOrder = useSendOrder();
@@ -154,19 +213,31 @@ export default function OrderPreview() {
 
         {/* Actions */}
         <div className="fixed bottom-20 md:bottom-8 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent pt-8">
-          <div className="container flex gap-3">
-            <Button variant="outline" className="flex-1" asChild>
-              <Link to={`/orders/${id}`}>
-                Επεξεργασία
-              </Link>
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={() => setSendDialogOpen(true)}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Αποστολή
-            </Button>
+          <div className="container flex flex-col gap-3">
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" asChild>
+                <Link to={`/orders/${id}`}>
+                  Επεξεργασία
+                </Link>
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => setSendDialogOpen(true)}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Αποστολή
+              </Button>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={handleShare}>
+                <Share2 className="h-4 w-4 mr-2" />
+                Κοινοποίηση
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={handleCopy}>
+                {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                {copied ? 'Αντιγράφηκε!' : 'Αντιγραφή'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
