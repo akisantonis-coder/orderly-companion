@@ -18,8 +18,7 @@ interface OrderItem {
 
 interface SendOrderRequest {
   orderId: string;
-  sendCopyToUser?: boolean;
-  userEmail?: string;
+  userEmail: string;
 }
 
 const UNIT_FULL_NAMES: Record<string, string> = {
@@ -152,7 +151,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { orderId, sendCopyToUser, userEmail }: SendOrderRequest = await req.json();
+    const { orderId, userEmail }: SendOrderRequest = await req.json();
 
     // Validate orderId format (UUID)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -163,25 +162,23 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate userEmail if sendCopyToUser is requested
-    if (sendCopyToUser) {
-      if (!userEmail) {
-        return new Response(
-          JSON.stringify({ error: "User email is required when sending copy" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-      
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(userEmail) || userEmail.length > 254) {
-        return new Response(
-          JSON.stringify({ error: "Invalid email format" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
+    // Validate userEmail
+    if (!userEmail) {
+      return new Response(
+        JSON.stringify({ error: "User email is required" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail) || userEmail.length > 254) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
-    // Fetch order with supplier and items
+    // Fetch order with supplier and items (sorted by sort_order)
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(`
@@ -199,36 +196,24 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Order not found");
     }
 
-    const supplierEmail = order.supplier.email;
+    // Sort items by sort_order
+    const sortedItems = [...order.items].sort((a: any, b: any) => 
+      (a.sort_order || 0) - (b.sort_order || 0)
+    );
+
     const supplierName = order.supplier.name;
-
-    if (!supplierEmail) {
-      throw new Error("Ο προμηθευτής δεν έχει email");
-    }
-
-    const emailHtml = generateEmailHtml(supplierName, order.items);
+    const emailHtml = generateEmailHtml(supplierName, sortedItems);
     const subject = `Παραγγελία - ${supplierName}`;
 
-    // Send to supplier
-    const supplierEmailResponse = await resend.emails.send({
+    // Send to user only
+    const emailResponse = await resend.emails.send({
       from: "Αποθήκη <onboarding@resend.dev>",
-      to: [supplierEmail],
+      to: [userEmail],
       subject: subject,
       html: emailHtml,
     });
 
-    console.log("Email sent to supplier:", supplierEmailResponse);
-
-    // Send copy to user if requested
-    if (sendCopyToUser && userEmail) {
-      const userEmailResponse = await resend.emails.send({
-        from: "Αποθήκη <onboarding@resend.dev>",
-        to: [userEmail],
-        subject: `[Αντίγραφο] ${subject}`,
-        html: emailHtml,
-      });
-      console.log("Copy sent to user:", userEmailResponse);
-    }
+    console.log("Email sent to user:", emailResponse);
 
     // Update order status
     const { error: updateError } = await supabase
@@ -247,7 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: "Email sent successfully",
-        supplierEmail 
+        userEmail 
       }),
       {
         status: 200,

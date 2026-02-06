@@ -213,6 +213,28 @@ export function useUpdateOrderItem() {
   });
 }
 
+export function useUpdateOrderItemsOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (items: { id: string; sort_order: number }[]) => {
+      const updates = items.map(item => 
+        supabase
+          .from('order_items')
+          .update({ sort_order: item.sort_order })
+          .eq('id', item.id)
+      );
+      
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order'] });
+      queryClient.invalidateQueries({ queryKey: ['draft-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order-by-supplier'] });
+    },
+  });
+}
+
 export function useDeleteOrderItem() {
   const queryClient = useQueryClient();
 
@@ -258,15 +280,13 @@ export function useSendOrder() {
   return useMutation({
     mutationFn: async ({ 
       orderId, 
-      sendCopyToUser = false, 
       userEmail 
     }: { 
       orderId: string; 
-      sendCopyToUser?: boolean; 
-      userEmail?: string; 
-    }): Promise<{ success: boolean; supplierEmail?: string }> => {
+      userEmail: string; 
+    }): Promise<{ success: boolean; userEmail?: string }> => {
       const { data, error } = await supabase.functions.invoke('send-order-email', {
-        body: { orderId, sendCopyToUser, userEmail }
+        body: { orderId, userEmail }
       });
 
       if (error) throw error;

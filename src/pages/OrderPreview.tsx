@@ -78,9 +78,9 @@ export default function OrderPreview() {
   const { data: order, isLoading } = useOrder(id);
   const sendOrder = useSendOrder();
 
-  const handleSendOrder = async (sendCopyToUser: boolean, userEmail?: string) => {
+  const handleSendOrder = async (userEmail: string) => {
     try {
-      await sendOrder.mutateAsync({ orderId: id!, sendCopyToUser, userEmail });
+      await sendOrder.mutateAsync({ orderId: id!, userEmail });
       toast.success('Η παραγγελία εστάλη επιτυχώς');
       navigate('/orders');
     } catch (error: any) {
@@ -247,7 +247,6 @@ export default function OrderPreview() {
         open={sendDialogOpen}
         onOpenChange={setSendDialogOpen}
         supplierName={order.supplier.name}
-        supplierEmail={order.supplier.email}
         onConfirm={handleSendOrder}
         isLoading={sendOrder.isPending}
       />

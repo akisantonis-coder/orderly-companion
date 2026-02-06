@@ -21,6 +21,19 @@ export default function Suppliers() {
     return acc;
   }, {} as Record<string, number>);
 
+  // Sort suppliers: those with open orders first, then alphabetically
+  const sortedSuppliers = [...suppliers].sort((a, b) => {
+    const aHasOrders = orderCountBySupplier[a.id] || 0;
+    const bHasOrders = orderCountBySupplier[b.id] || 0;
+    
+    // Suppliers with orders come first
+    if (aHasOrders > 0 && bHasOrders === 0) return -1;
+    if (bHasOrders > 0 && aHasOrders === 0) return 1;
+    
+    // Then sort alphabetically
+    return a.name.localeCompare(b.name, 'el');
+  });
+
   const handleCreateSupplier = async (data: { name: string; email?: string; phone?: string }) => {
     try {
       await createSupplier.mutateAsync(data);
@@ -57,7 +70,7 @@ export default function Suppliers() {
           </div>
         ) : suppliers.length > 0 ? (
           <div className="space-y-2">
-            {suppliers.map((supplier) => (
+            {sortedSuppliers.map((supplier) => (
               <SupplierCard
                 key={supplier.id}
                 supplier={supplier}

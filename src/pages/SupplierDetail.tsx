@@ -1,8 +1,23 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, Package, Plus, Pencil, Trash2, MoreVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { Layout } from '@/components/Layout';
-import { ProductCard } from '@/components/ProductCard';
+import { SortableProductCard } from '@/components/SortableProductCard';
 import { OrderCard } from '@/components/OrderCard';
 import { AddProductDialog } from '@/components/AddProductDialog';
 import { SupplierDialog } from '@/components/SupplierDialog';
@@ -18,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSupplier, useUpdateSupplier, useDeleteSupplier } from '@/hooks/useSuppliers';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '@/hooks/useProducts';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useUpdateProductOrder } from '@/hooks/useProducts';
 import { useDraftOrders, useCreateOrder, useAddOrderItem } from '@/hooks/useOrders';
 import type { ProductWithSupplier, Product, UnitAbbreviation } from '@/types';
 import { toast } from 'sonner';
@@ -50,6 +65,19 @@ export default function SupplierDetail() {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const updateProductOrder = useUpdateProductOrder();
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const supplierOrders = draftOrders.filter(o => o.supplier_id === id);
   const selectedProductIds = new Set(
@@ -143,6 +171,25 @@ export default function SupplierDetail() {
       setDeleteProductOpen(false);
     } catch (error) {
       toast.error('Σφάλμα κατά τη διαγραφή');
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = products.findIndex(p => p.id === active.id);
+      const newIndex = products.findIndex(p => p.id === over.id);
+      
+      const newProducts = arrayMove(products, oldIndex, newIndex);
+      
+      // Update sort_order for all products
+      const updates = newProducts.map((p, index) => ({
+        id: p.id,
+        sort_order: index,
+      }));
+      
+      updateProductOrder.mutate(updates);
     }
   };
 
@@ -271,35 +318,29 @@ export default function SupplierDetail() {
                 ))}
               </div>
             ) : products.length > 0 ? (
-              <div className="space-y-2">
-                {products.map((product) => (
-                  <div key={product.id} className="relative group">
-                    <ProductCard
-                      product={{ ...product, supplier } as ProductWithSupplier}
-                      isSelected={selectedProductIds.has(product.id)}
-                      onSelect={() => handleProductSelect(product as ProductWithSupplier)}
-                    />
-                    <div className="absolute right-14 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => openEditProduct(product, e)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={(e) => openDeleteProduct(product, e)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={products.map(p => p.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {products.map((product) => (
+                      <SortableProductCard
+                        key={product.id}
+                        product={{ ...product, supplier } as ProductWithSupplier}
+                        isSelected={selectedProductIds.has(product.id)}
+                        onSelect={() => handleProductSelect(product as ProductWithSupplier)}
+                        onEdit={(e) => openEditProduct(product, e)}
+                        onDelete={(e) => openDeleteProduct(product, e)}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             ) : (
               <EmptyState
                 icon={Package}
