@@ -9,7 +9,8 @@ export function useProducts(supplierId?: string) {
       let query = supabase
         .from('products')
         .select('*')
-        .order('name');
+        .order('sort_order', { ascending: true })
+        .order('name', { ascending: true });
 
       if (supplierId) {
         query = query.eq('supplier_id', supplierId);
@@ -22,6 +23,28 @@ export function useProducts(supplierId?: string) {
         ...p,
         unit: p.unit as UnitAbbreviation
       }));
+    },
+  });
+}
+
+export function useUpdateProductOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (products: { id: string; sort_order: number }[]) => {
+      // Update all products in a single batch
+      const updates = products.map(p => 
+        supabase
+          .from('products')
+          .update({ sort_order: p.sort_order })
+          .eq('id', p.id)
+      );
+      
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products-with-suppliers'] });
     },
   });
 }

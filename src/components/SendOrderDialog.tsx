@@ -10,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -18,8 +17,7 @@ interface SendOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   supplierName: string;
-  supplierEmail: string | null;
-  onConfirm: (sendCopyToUser: boolean, userEmail?: string) => void;
+  onConfirm: (userEmail: string) => void;
   isLoading?: boolean;
 }
 
@@ -27,18 +25,16 @@ export function SendOrderDialog({
   open,
   onOpenChange,
   supplierName,
-  supplierEmail,
   onConfirm,
   isLoading,
 }: SendOrderDialogProps) {
-  const [sendCopy, setSendCopy] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
   const handleConfirm = () => {
-    onConfirm(sendCopy, sendCopy ? userEmail : undefined);
+    onConfirm(userEmail);
   };
 
-  const isValid = !sendCopy || (sendCopy && userEmail.includes('@'));
+  const isValid = userEmail.includes('@') && userEmail.length > 3;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -51,48 +47,22 @@ export function SendOrderDialog({
           <AlertDialogDescription asChild>
             <div className="space-y-4">
               <p>
-                Θέλετε να στείλετε την παραγγελία στον προμηθευτή "{supplierName}";
+                Στείλε την παραγγελία για τον προμηθευτή "{supplierName}" στο email σου.
               </p>
               
-              {supplierEmail ? (
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="text-sm text-foreground">
-                    <span className="text-muted-foreground">Email προμηθευτή:</span>{' '}
-                    <span className="font-medium">{supplierEmail}</span>
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-destructive/10 text-destructive p-3 rounded-lg">
-                  <p className="text-sm">
-                    ⚠️ Ο προμηθευτής δεν έχει email. Προσθέστε email πρώτα.
-                  </p>
-                </div>
-              )}
-
-              {supplierEmail && (
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="send-copy"
-                      checked={sendCopy}
-                      onCheckedChange={(checked) => setSendCopy(checked === true)}
-                    />
-                    <Label htmlFor="send-copy" className="text-sm font-normal cursor-pointer">
-                      Αποστολή αντιγράφου στο email μου
-                    </Label>
-                  </div>
-
-                  {sendCopy && (
-                    <Input
-                      type="email"
-                      placeholder="Το email σας"
-                      value={userEmail}
-                      onChange={(e) => setUserEmail(e.target.value)}
-                      className="mt-2"
-                    />
-                  )}
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="user-email">Το email σας</Label>
+                <Input
+                  id="user-email"
+                  type="email"
+                  placeholder="example@email.com"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Θα λάβετε την παραγγελία στο email σας για να την προωθήσετε ή κοινοποιήσετε.
+                </p>
+              </div>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -100,7 +70,7 @@ export function SendOrderDialog({
           <AlertDialogCancel disabled={isLoading}>Ακύρωση</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            disabled={!supplierEmail || !isValid || isLoading}
+            disabled={!isValid || isLoading}
           >
             {isLoading ? (
               'Αποστολή...'

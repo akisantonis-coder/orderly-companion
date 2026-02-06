@@ -21,6 +21,7 @@ export type Database = {
           order_id: string
           product_id: string
           quantity: number
+          sort_order: number
         }
         Insert: {
           created_at?: string
@@ -28,6 +29,7 @@ export type Database = {
           order_id: string
           product_id: string
           quantity?: number
+          sort_order?: number
         }
         Update: {
           created_at?: string
@@ -35,6 +37,7 @@ export type Database = {
           order_id?: string
           product_id?: string
           quantity?: number
+          sort_order?: number
         }
         Relationships: [
           {
@@ -93,6 +96,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          sort_order: number
           supplier_id: string
           unit: string
         }
@@ -100,6 +104,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          sort_order?: number
           supplier_id: string
           unit?: string
         }
@@ -107,6 +112,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          sort_order?: number
           supplier_id?: string
           unit?: string
         }
