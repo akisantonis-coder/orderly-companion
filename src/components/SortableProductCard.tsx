@@ -1,8 +1,15 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Trash2, Plus } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, Plus, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { Product, ProductWithSupplier } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import type { ProductWithSupplier } from '@/types';
 
 interface SortableProductCardProps {
   product: ProductWithSupplier;
@@ -10,6 +17,7 @@ interface SortableProductCardProps {
   onSelect: () => void;
   onEdit: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
+  duplicateSuppliers?: string[];
 }
 
 export function SortableProductCard({
@@ -18,6 +26,7 @@ export function SortableProductCard({
   onSelect,
   onEdit,
   onDelete,
+  duplicateSuppliers = [],
 }: SortableProductCardProps) {
   const {
     attributes,
@@ -56,9 +65,31 @@ export function SortableProductCard({
         onClick={onSelect}
         className="flex-1 text-left min-w-0 py-2"
       >
-        <p className="font-medium text-foreground truncate">
-          {product.name}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="font-medium text-foreground truncate">
+            {product.name}
+          </p>
+          {duplicateSuppliers.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="shrink-0 gap-1 cursor-help">
+                    <Users className="h-3 w-3" />
+                    +{duplicateSuppliers.length}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="font-medium mb-1">Υπάρχει επίσης σε:</p>
+                  <ul className="text-sm">
+                    {duplicateSuppliers.map((name, i) => (
+                      <li key={i}>• {name}</li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           {product.unit}
         </p>

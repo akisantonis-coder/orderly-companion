@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSupplier, useUpdateSupplier, useDeleteSupplier } from '@/hooks/useSuppliers';
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useUpdateProductOrder } from '@/hooks/useProducts';
+import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useUpdateProductOrder, useProductsWithSuppliers } from '@/hooks/useProducts';
 import { useDraftOrders, useCreateOrder, useAddOrderItem } from '@/hooks/useOrders';
 import type { ProductWithSupplier, Product, UnitAbbreviation } from '@/types';
 import { toast } from 'sonner';
@@ -55,6 +55,7 @@ export default function SupplierDetail() {
   // Queries
   const { data: supplier, isLoading: supplierLoading } = useSupplier(id);
   const { data: products = [], isLoading: productsLoading } = useProducts(id);
+  const { data: allProducts = [] } = useProductsWithSuppliers();
   const { data: draftOrders = [] } = useDraftOrders();
   
   // Mutations
@@ -150,16 +151,32 @@ export default function SupplierDetail() {
     }
   };
 
-  const handleUpdateProduct = async (data: { name: string; unit: UnitAbbreviation }) => {
+  const handleUpdateProduct = async (data: { name: string; unit: UnitAbbreviation; supplier_id?: string }) => {
     if (!editingProduct) return;
     try {
+      const isMovingToOtherSupplier = data.supplier_id && data.supplier_id !== id;
       await updateProduct.mutateAsync({ id: editingProduct.id, data });
-      toast.success('Το προϊόν ενημερώθηκε');
+      
+      if (isMovingToOtherSupplier) {
+        toast.success('Το προϊόν μεταφέρθηκε σε άλλον προμηθευτή');
+      } else {
+        toast.success('Το προϊόν ενημερώθηκε');
+      }
       setEditingProduct(null);
     } catch (error) {
       toast.error('Σφάλμα κατά την ενημέρωση');
       throw error;
     }
+  };
+
+  // Find duplicates for each product
+  const getProductDuplicates = (productName: string): string[] => {
+    return allProducts
+      .filter(p => 
+        p.name.toLowerCase() === productName.toLowerCase() && 
+        p.supplier_id !== id
+      )
+      .map(p => p.supplier.name);
   };
 
   const handleDeleteProduct = async () => {
@@ -336,6 +353,7 @@ export default function SupplierDetail() {
                         onSelect={() => handleProductSelect(product as ProductWithSupplier)}
                         onEdit={(e) => openEditProduct(product, e)}
                         onDelete={(e) => openDeleteProduct(product, e)}
+                        duplicateSuppliers={getProductDuplicates(product.name)}
                       />
                     ))}
                   </div>

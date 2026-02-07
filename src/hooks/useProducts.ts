@@ -136,13 +136,19 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name: string; unit: UnitAbbreviation } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { name: string; unit: UnitAbbreviation; supplier_id?: string } }) => {
+      const updateData: { name: string; unit: string; supplier_id?: string } = {
+        name: data.name,
+        unit: data.unit,
+      };
+      
+      if (data.supplier_id) {
+        updateData.supplier_id = data.supplier_id;
+      }
+      
       const { data: product, error } = await supabase
         .from('products')
-        .update({
-          name: data.name,
-          unit: data.unit,
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -154,6 +160,33 @@ export function useUpdateProduct() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['products-with-suppliers'] });
     },
+  });
+}
+
+export function useProductDuplicates(productName: string, currentSupplierId?: string) {
+  return useQuery({
+    queryKey: ['product-duplicates', productName, currentSupplierId],
+    queryFn: async (): Promise<ProductWithSupplier[]> => {
+      if (!productName || productName.length < 2) return [];
+
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          supplier:suppliers(*)
+        `)
+        .ilike('name', productName)
+        .neq('supplier_id', currentSupplierId || '');
+
+      if (error) throw error;
+      
+      return data.map(p => ({
+        ...p,
+        unit: p.unit as UnitAbbreviation,
+        supplier: p.supplier as ProductWithSupplier['supplier']
+      }));
+    },
+    enabled: !!productName && productName.length >= 2,
   });
 }
 
