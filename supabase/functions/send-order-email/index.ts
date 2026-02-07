@@ -19,6 +19,7 @@ interface OrderItem {
 interface SendOrderRequest {
   orderId: string;
   userEmail: string;
+  customMessage?: string;
 }
 
 const UNIT_FULL_NAMES: Record<string, string> = {
@@ -54,7 +55,17 @@ function formatDate(): string {
   return now.toLocaleDateString('el-GR', options);
 }
 
-function generateEmailHtml(supplierName: string, items: OrderItem[]): string {
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/\n/g, '<br>');
+}
+
+function generateEmailHtml(supplierName: string, items: OrderItem[], customMessage?: string): string {
   const itemsTable = items.map(item => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${item.product.name}</td>
@@ -62,6 +73,16 @@ function generateEmailHtml(supplierName: string, items: OrderItem[]): string {
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${getFullUnitName(item.product.unit, item.quantity)}</td>
     </tr>
   `).join('');
+
+  const messageHtml = customMessage 
+    ? `<div style="margin-bottom: 20px; white-space: pre-wrap;">${escapeHtml(customMessage)}</div>`
+    : `<p style="margin-top: 0;">Γεια σας,</p>
+       <p>Θα θέλαμε να παραγγείλουμε τα παρακάτω προϊόντα:</p>`;
+
+  const signatureHtml = customMessage 
+    ? '' 
+    : `<p>Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.</p>
+       <p style="margin-bottom: 0;">Ευχαριστούμε,<br><strong>Αποθήκη</strong></p>`;
 
   return `
     <!DOCTYPE html>
@@ -77,9 +98,7 @@ function generateEmailHtml(supplierName: string, items: OrderItem[]): string {
       </div>
       
       <div style="background: #ffffff; padding: 24px; border: 1px solid #e5e7eb; border-top: none;">
-        <p style="margin-top: 0;">Γεια σας,</p>
-        
-        <p>Θα θέλαμε να παραγγείλουμε τα παρακάτω προϊόντα:</p>
+        ${messageHtml}
         
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f9fafb; border-radius: 8px; overflow: hidden;">
           <thead>
@@ -94,9 +113,7 @@ function generateEmailHtml(supplierName: string, items: OrderItem[]): string {
           </tbody>
         </table>
         
-        <p>Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.</p>
-        
-        <p style="margin-bottom: 0;">Ευχαριστούμε,<br><strong>Αποθήκη</strong></p>
+        ${signatureHtml}
       </div>
       
       <div style="background: #f3f4f6; padding: 16px 24px; border-radius: 0 0 12px 12px; border: 1px solid #e5e7eb; border-top: none;">
@@ -151,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { orderId, userEmail }: SendOrderRequest = await req.json();
+    const { orderId, userEmail, customMessage }: SendOrderRequest = await req.json();
 
     // Validate orderId format (UUID)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -174,6 +191,14 @@ const handler = async (req: Request): Promise<Response> => {
     if (!emailRegex.test(userEmail) || userEmail.length > 254) {
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Validate customMessage length if provided
+    if (customMessage && customMessage.length > 5000) {
+      return new Response(
+        JSON.stringify({ error: "Message too long (max 5000 characters)" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -202,7 +227,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const supplierName = order.supplier.name;
-    const emailHtml = generateEmailHtml(supplierName, sortedItems);
+    const emailHtml = generateEmailHtml(supplierName, sortedItems, customMessage);
     const subject = `Παραγγελία - ${supplierName}`;
 
     // Send to user only

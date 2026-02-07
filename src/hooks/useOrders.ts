@@ -280,13 +280,15 @@ export function useSendOrder() {
   return useMutation({
     mutationFn: async ({ 
       orderId, 
-      userEmail 
+      userEmail,
+      customMessage
     }: { 
       orderId: string; 
-      userEmail: string; 
+      userEmail: string;
+      customMessage?: string;
     }): Promise<{ success: boolean; userEmail?: string }> => {
       const { data, error } = await supabase.functions.invoke('send-order-email', {
-        body: { orderId, userEmail }
+        body: { orderId, userEmail, customMessage }
       });
 
       if (error) throw error;

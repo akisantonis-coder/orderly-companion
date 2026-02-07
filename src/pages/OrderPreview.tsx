@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, FileText, Mail, Share2, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Mail, Share2, Copy, Check, Download } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,13 @@ import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { exportOrderToPDF, exportOrderToExcel } from '@/utils/orderExport';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Generate order text for sharing
 const generateOrderText = (order: any): string => {
@@ -78,13 +85,27 @@ export default function OrderPreview() {
   const { data: order, isLoading } = useOrder(id);
   const sendOrder = useSendOrder();
 
-  const handleSendOrder = async (userEmail: string) => {
+  const handleSendOrder = async (userEmail: string, customMessage: string) => {
     try {
-      await sendOrder.mutateAsync({ orderId: id!, userEmail });
+      await sendOrder.mutateAsync({ orderId: id!, userEmail, customMessage });
       toast.success('Η παραγγελία εστάλη επιτυχώς');
       navigate('/orders');
     } catch (error: any) {
       toast.error(error.message || 'Σφάλμα κατά την αποστολή');
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (order) {
+      exportOrderToPDF(order);
+      toast.success('Το PDF κατέβηκε');
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (order) {
+      exportOrderToExcel(order);
+      toast.success('Το Excel κατέβηκε');
     }
   };
 
@@ -237,6 +258,23 @@ export default function OrderPreview() {
                 {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                 {copied ? 'Αντιγράφηκε!' : 'Αντιγραφή'}
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportPDF}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Εξαγωγή PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Εξαγωγή Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>

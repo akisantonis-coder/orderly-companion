@@ -12,14 +12,24 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface SendOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   supplierName: string;
-  onConfirm: (userEmail: string) => void;
+  onConfirm: (userEmail: string, customMessage: string) => void;
   isLoading?: boolean;
 }
+
+const DEFAULT_MESSAGE = `Γεια σας,
+
+Θα θέλαμε να παραγγείλουμε τα παρακάτω προϊόντα.
+
+Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
+
+Ευχαριστούμε,
+Αποθήκη`;
 
 export function SendOrderDialog({
   open,
@@ -29,16 +39,17 @@ export function SendOrderDialog({
   isLoading,
 }: SendOrderDialogProps) {
   const [userEmail, setUserEmail] = useState('');
+  const [customMessage, setCustomMessage] = useState(DEFAULT_MESSAGE);
 
   const handleConfirm = () => {
-    onConfirm(userEmail);
+    onConfirm(userEmail, customMessage);
   };
 
   const isValid = userEmail.includes('@') && userEmail.length > 3;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-primary" />
@@ -59,8 +70,20 @@ export function SendOrderDialog({
                   value={userEmail}
                   onChange={(e) => setUserEmail(e.target.value)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="custom-message">Μήνυμα</Label>
+                <Textarea
+                  id="custom-message"
+                  placeholder="Γράψε το μήνυμά σου..."
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  rows={6}
+                  className="resize-none"
+                />
                 <p className="text-xs text-muted-foreground">
-                  Θα λάβετε την παραγγελία στο email σας για να την προωθήσετε ή κοινοποιήσετε.
+                  Το μήνυμα θα εμφανιστεί στο email πριν τον πίνακα προϊόντων.
                 </p>
               </div>
             </div>
