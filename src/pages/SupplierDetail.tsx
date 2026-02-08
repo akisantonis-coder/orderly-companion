@@ -85,6 +85,14 @@ export default function SupplierDetail() {
     supplierOrders.flatMap(order => order.items?.map(item => item.product_id) || [])
   );
 
+  // Get quantity for a product in the current order
+  const getProductOrderQuantity = (productId: string): number | undefined => {
+    const order = supplierOrders[0];
+    if (!order?.items) return undefined;
+    const item = order.items.find(i => i.product_id === productId);
+    return item?.quantity;
+  };
+
   const handleProductSelect = (product: ProductWithSupplier) => {
     setSelectedProduct({
       ...product,
@@ -93,7 +101,7 @@ export default function SupplierDetail() {
     setAddProductDialogOpen(true);
   };
 
-  const handleAddProduct = async (product: ProductWithSupplier, quantity: number) => {
+  const handleAddProduct = async (product: ProductWithSupplier, quantity: number, unit: UnitAbbreviation) => {
     try {
       let order = supplierOrders[0];
 
@@ -350,6 +358,7 @@ export default function SupplierDetail() {
                         key={product.id}
                         product={{ ...product, supplier } as ProductWithSupplier}
                         isSelected={selectedProductIds.has(product.id)}
+                        orderQuantity={getProductOrderQuantity(product.id)}
                         onSelect={() => handleProductSelect(product as ProductWithSupplier)}
                         onEdit={(e) => openEditProduct(product, e)}
                         onDelete={(e) => openDeleteProduct(product, e)}
