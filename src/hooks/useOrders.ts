@@ -25,13 +25,16 @@ export function useDraftOrders() {
         ...order,
         status: order.status as Order['status'],
         supplier: order.supplier,
-        items: order.items.map((item: any) => ({
-          ...item,
-          product: {
-            ...item.product,
-            unit: item.product.unit as UnitAbbreviation
-          }
-        }))
+        items: order.items
+          .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          .map((item: any) => ({
+            ...item,
+            unit: item.unit as UnitAbbreviation,
+            product: {
+              ...item.product,
+              unit: item.product.unit as UnitAbbreviation
+            }
+          }))
       })) as OrderWithDetails[];
     },
   });
@@ -62,13 +65,16 @@ export function useOrder(orderId: string | undefined) {
         ...data,
         status: data.status as Order['status'],
         supplier: data.supplier,
-        items: data.items.map((item: any) => ({
-          ...item,
-          product: {
-            ...item.product,
-            unit: item.product.unit as UnitAbbreviation
-          }
-        }))
+        items: data.items
+          .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          .map((item: any) => ({
+            ...item,
+            unit: item.unit as UnitAbbreviation,
+            product: {
+              ...item.product,
+              unit: item.product.unit as UnitAbbreviation
+            }
+          }))
       } as OrderWithDetails;
     },
     enabled: !!orderId,
@@ -102,13 +108,16 @@ export function useOrderBySupplierId(supplierId: string | undefined) {
         ...data,
         status: data.status as Order['status'],
         supplier: data.supplier,
-        items: data.items.map((item: any) => ({
-          ...item,
-          product: {
-            ...item.product,
-            unit: item.product.unit as UnitAbbreviation
-          }
-        }))
+        items: data.items
+          .sort((a: any, b: any) => a.sort_order - b.sort_order)
+          .map((item: any) => ({
+            ...item,
+            unit: item.unit as UnitAbbreviation,
+            product: {
+              ...item.product,
+              unit: item.product.unit as UnitAbbreviation
+            }
+          }))
       } as OrderWithDetails;
     },
     enabled: !!supplierId,
@@ -143,7 +152,17 @@ export function useAddOrderItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ orderId, productId, quantity }: { orderId: string; productId: string; quantity: number }): Promise<OrderItem> => {
+    mutationFn: async ({ 
+      orderId, 
+      productId, 
+      quantity,
+      unit 
+    }: { 
+      orderId: string; 
+      productId: string; 
+      quantity: number;
+      unit: UnitAbbreviation;
+    }): Promise<OrderItem> => {
       // Check if item already exists
       const { data: existing } = await supabase
         .from('order_items')
@@ -153,22 +172,42 @@ export function useAddOrderItem() {
         .maybeSingle();
 
       if (existing) {
-        // Update existing item
+        // Update existing item quantity and unit
         const { data, error } = await supabase
           .from('order_items')
-          .update({ quantity: existing.quantity + quantity })
+          .update({ 
+            quantity: existing.quantity + quantity,
+            unit 
+          })
           .eq('id', existing.id)
           .select()
           .single();
 
         if (error) throw error;
-        return data;
+        return { ...data, unit: data.unit as UnitAbbreviation };
       }
 
-      // Create new item
+      // Get max sort_order for new item
+      const { data: maxItem } = await supabase
+        .from('order_items')
+        .select('sort_order')
+        .eq('order_id', orderId)
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextSortOrder = (maxItem?.sort_order ?? -1) + 1;
+
+      // Create new item with unit
       const { data, error } = await supabase
         .from('order_items')
-        .insert({ order_id: orderId, product_id: productId, quantity })
+        .insert({ 
+          order_id: orderId, 
+          product_id: productId, 
+          quantity,
+          unit,
+          sort_order: nextSortOrder
+        })
         .select()
         .single();
 
@@ -180,7 +219,7 @@ export function useAddOrderItem() {
         .update({ updated_at: new Date().toISOString() })
         .eq('id', orderId);
 
-      return data;
+      return { ...data, unit: data.unit as UnitAbbreviation };
     },
     onSuccess: (_, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
@@ -194,16 +233,27 @@ export function useUpdateOrderItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }): Promise<OrderItem> => {
+    mutationFn: async ({ 
+      itemId, 
+      quantity,
+      unit 
+    }: { 
+      itemId: string; 
+      quantity: number;
+      unit?: UnitAbbreviation;
+    }): Promise<OrderItem> => {
+      const updateData: { quantity: number; unit?: string } = { quantity };
+      if (unit) updateData.unit = unit;
+
       const { data, error } = await supabase
         .from('order_items')
-        .update({ quantity })
+        .update(updateData)
         .eq('id', itemId)
         .select()
         .single();
 
       if (error) throw error;
-      return data;
+      return { ...data, unit: data.unit as UnitAbbreviation };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['order'] });

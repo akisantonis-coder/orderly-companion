@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Package, Truck, ChevronRight, Plus } from 'lucide-react';
+import { Package, Truck, ChevronRight } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { SearchInput } from '@/components/SearchInput';
 import { OrderCard } from '@/components/OrderCard';
 import { ProductCard } from '@/components/ProductCard';
 import { AddProductDialog } from '@/components/AddProductDialog';
 import { EmptyState } from '@/components/EmptyState';
-import { Button } from '@/components/ui/button';
 import { useDraftOrders, useCreateOrder, useAddOrderItem } from '@/hooks/useOrders';
 import { useProductSearch } from '@/hooks/useProducts';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import type { ProductWithSupplier } from '@/types';
+import type { ProductWithSupplier, UnitAbbreviation } from '@/types';
 import { toast } from 'sonner';
 
 export default function Index() {
@@ -30,7 +29,7 @@ export default function Index() {
     setDialogOpen(true);
   };
 
-  const handleAddProduct = async (product: ProductWithSupplier, quantity: number) => {
+  const handleAddProduct = async (product: ProductWithSupplier, quantity: number, unit: UnitAbbreviation) => {
     try {
       // Check if there's already a draft order for this supplier
       let order = draftOrders.find(o => o.supplier_id === product.supplier_id);
@@ -42,6 +41,7 @@ export default function Index() {
           orderId: newOrder.id,
           productId: product.id,
           quantity,
+          unit,
         });
       } else {
         // Add to existing order
@@ -49,6 +49,7 @@ export default function Index() {
           orderId: order.id,
           productId: product.id,
           quantity,
+          unit,
         });
       }
 

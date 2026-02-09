@@ -9,7 +9,7 @@ export function useSuppliers() {
       const { data, error } = await supabase
         .from('suppliers')
         .select('*')
-        .order('name');
+        .order('sort_order');
 
       if (error) throw error;
       return data;
@@ -41,12 +41,23 @@ export function useCreateSupplier() {
 
   return useMutation({
     mutationFn: async (data: { name: string; email?: string; phone?: string }) => {
+      // Get max sort_order
+      const { data: maxItem } = await supabase
+        .from('suppliers')
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextSortOrder = (maxItem?.sort_order ?? -1) + 1;
+
       const { data: supplier, error } = await supabase
         .from('suppliers')
         .insert({
           name: data.name,
           email: data.email || null,
           phone: data.phone || null,
+          sort_order: nextSortOrder,
         })
         .select()
         .single();
@@ -82,6 +93,26 @@ export function useUpdateSupplier() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['supplier', variables.id] });
+    },
+  });
+}
+
+export function useUpdateSupplierOrder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (suppliers: { id: string; sort_order: number }[]) => {
+      const updates = suppliers.map(supplier => 
+        supabase
+          .from('suppliers')
+          .update({ sort_order: supplier.sort_order })
+          .eq('id', supplier.id)
+      );
+      
+      await Promise.all(updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
     },
   });
 }

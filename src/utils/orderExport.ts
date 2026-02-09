@@ -12,6 +12,7 @@ interface OrderItem {
     unit: UnitAbbreviation;
   };
   quantity: number;
+  unit?: UnitAbbreviation;
 }
 
 interface Order {
@@ -55,13 +56,15 @@ function createPDFElement(order: Order): HTMLDivElement {
         </tr>
       </thead>
       <tbody>
-        ${order.items?.map((item, index) => `
+        ${order.items?.map((item, index) => {
+          const displayUnit = item.unit || item.product.unit;
+          return `
           <tr style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-bottom: 1px solid #e5e7eb;">
             <td style="padding: 12px 16px;">${item.product.name}</td>
             <td style="padding: 12px 16px; text-align: right; font-weight: 500;">${item.quantity}</td>
-            <td style="padding: 12px 16px;">${getFullUnitName(item.product.unit, item.quantity)}</td>
+            <td style="padding: 12px 16px;">${getFullUnitName(displayUnit, item.quantity)}</td>
           </tr>
-        `).join('') || ''}
+        `;}).join('') || ''}
       </tbody>
     </table>
     
@@ -132,11 +135,14 @@ export function exportOrderToExcel(order: Order): void {
     ['Ημερομηνία: ' + date],
     [],
     ['Προϊόν', 'Ποσότητα', 'Μονάδα'],
-    ...(order.items?.map(item => [
-      item.product.name,
-      item.quantity,
-      getFullUnitName(item.product.unit, item.quantity)
-    ]) || []),
+    ...(order.items?.map(item => {
+      const displayUnit = item.unit || item.product.unit;
+      return [
+        item.product.name,
+        item.quantity,
+        getFullUnitName(displayUnit, item.quantity)
+      ];
+    }) || []),
     [],
     ['Σύνολο ειδών:', order.items?.length || 0, '']
   ];

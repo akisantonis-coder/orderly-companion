@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Package, Plus, Pencil, Trash2, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Package, Plus, Pencil, Trash2, MoreVertical, Lock, Unlock } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { Layout } from '@/components/Layout';
 import { SortableProductCard } from '@/components/SortableProductCard';
+import { ProductCardSimple } from '@/components/ProductCardSimple';
 import { OrderCard } from '@/components/OrderCard';
 import { AddProductDialog } from '@/components/AddProductDialog';
 import { SupplierDialog } from '@/components/SupplierDialog';
@@ -51,6 +52,9 @@ export default function SupplierDetail() {
   const [deleteSupplierOpen, setDeleteSupplierOpen] = useState(false);
   const [deleteProductOpen, setDeleteProductOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  
+  // Edit mode for product reordering
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Queries
   const { data: supplier, isLoading: supplierLoading } = useSupplier(id);
@@ -81,16 +85,14 @@ export default function SupplierDetail() {
   );
 
   const supplierOrders = draftOrders.filter(o => o.supplier_id === id);
-  const selectedProductIds = new Set(
-    supplierOrders.flatMap(order => order.items?.map(item => item.product_id) || [])
-  );
-
-  // Get quantity for a product in the current order
-  const getProductOrderQuantity = (productId: string): number | undefined => {
+  
+  // Get order info for a product
+  const getProductOrderInfo = (productId: string) => {
     const order = supplierOrders[0];
     if (!order?.items) return undefined;
     const item = order.items.find(i => i.product_id === productId);
-    return item?.quantity;
+    if (!item) return undefined;
+    return { quantity: item.quantity, unit: item.unit };
   };
 
   const handleProductSelect = (product: ProductWithSupplier) => {
@@ -111,12 +113,14 @@ export default function SupplierDetail() {
           orderId: newOrder.id,
           productId: product.id,
           quantity,
+          unit,
         });
       } else {
         await addOrderItem.mutateAsync({
           orderId: order.id,
           productId: product.id,
           quantity,
+          unit,
         });
       }
 
@@ -323,7 +327,24 @@ export default function SupplierDetail() {
           </TabsList>
 
           <TabsContent value="products" className="space-y-4 mt-4">
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+              <Button
+                variant={isEditMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setIsEditMode(!isEditMode)}
+              >
+                {isEditMode ? (
+                  <>
+                    <Lock className="h-4 w-4 mr-2" />
+                    Κλείδωμα
+                  </>
+                ) : (
+                  <>
+                    <Unlock className="h-4 w-4 mr-2" />
+                    Επεξεργασία σειράς
+                  </>
+                )}
+              </Button>
               <Button 
                 size="sm" 
                 onClick={() => {
@@ -343,31 +364,56 @@ export default function SupplierDetail() {
                 ))}
               </div>
             ) : products.length > 0 ? (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={products.map(p => p.id)}
-                  strategy={verticalListSortingStrategy}
+              isEditMode ? (
+                // Edit mode: drag-drop enabled
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
                 >
-                  <div className="space-y-2">
-                    {products.map((product) => (
-                      <SortableProductCard
+                  <SortableContext
+                    items={products.map(p => p.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2">
+                      {products.map((product) => {
+                        const orderInfo = getProductOrderInfo(product.id);
+                        return (
+                          <SortableProductCard
+                            key={product.id}
+                            product={{ ...product, supplier } as ProductWithSupplier}
+                            isSelected={!!orderInfo}
+                            orderQuantity={orderInfo?.quantity}
+                            orderUnit={orderInfo?.unit}
+                            onSelect={() => handleProductSelect(product as ProductWithSupplier)}
+                            onEdit={(e) => openEditProduct(product, e)}
+                            onDelete={(e) => openDeleteProduct(product, e)}
+                            duplicateSuppliers={getProductDuplicates(product.name)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                // Normal mode: no drag-drop
+                <div className="space-y-2">
+                  {products.map((product) => {
+                    const orderInfo = getProductOrderInfo(product.id);
+                    return (
+                      <ProductCardSimple
                         key={product.id}
                         product={{ ...product, supplier } as ProductWithSupplier}
-                        isSelected={selectedProductIds.has(product.id)}
-                        orderQuantity={getProductOrderQuantity(product.id)}
+                        isInOrder={!!orderInfo}
+                        orderQuantity={orderInfo?.quantity}
+                        orderUnit={orderInfo?.unit}
                         onSelect={() => handleProductSelect(product as ProductWithSupplier)}
-                        onEdit={(e) => openEditProduct(product, e)}
-                        onDelete={(e) => openDeleteProduct(product, e)}
                         duplicateSuppliers={getProductDuplicates(product.name)}
                       />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
+                    );
+                  })}
+                </div>
+              )
             ) : (
               <EmptyState
                 icon={Package}
