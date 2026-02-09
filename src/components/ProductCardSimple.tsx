@@ -1,6 +1,4 @@
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Trash2, Plus, Users, Check } from 'lucide-react';
+import { Plus, Users, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,62 +10,30 @@ import {
 import { cn } from '@/lib/utils';
 import type { ProductWithSupplier, UnitAbbreviation } from '@/types';
 
-interface SortableProductCardProps {
+interface ProductCardSimpleProps {
   product: ProductWithSupplier;
-  isSelected: boolean;
+  isInOrder: boolean;
   orderQuantity?: number;
   orderUnit?: UnitAbbreviation;
   onSelect: () => void;
-  onEdit: (e: React.MouseEvent) => void;
-  onDelete: (e: React.MouseEvent) => void;
   duplicateSuppliers?: string[];
 }
 
-export function SortableProductCard({
+export function ProductCardSimple({
   product,
-  isSelected,
+  isInOrder,
   orderQuantity,
   orderUnit,
   onSelect,
-  onEdit,
-  onDelete,
   duplicateSuppliers = [],
-}: SortableProductCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: product.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  const isInOrder = isSelected && orderQuantity !== undefined && orderQuantity > 0;
-
+}: ProductCardSimpleProps) {
   return (
     <div
-      ref={setNodeRef}
-      style={style}
       className={cn(
         'order-card flex items-center gap-3 group transition-all',
         isInOrder && 'ring-2 ring-success bg-success-light border-success/30'
       )}
     >
-      {/* Drag Handle */}
-      <button
-        className="touch-none text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing p-1"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical className="h-5 w-5" />
-      </button>
-
       {/* Product Info - Clickable */}
       <button
         onClick={onSelect}
@@ -110,26 +76,6 @@ export function SortableProductCard({
           )}
         </div>
       </button>
-
-      {/* Actions */}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={onEdit}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-destructive hover:text-destructive"
-          onClick={onDelete}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
 
       {/* Add Button */}
       <Button

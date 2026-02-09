@@ -22,9 +22,11 @@ import {
 const generateOrderText = (order: any): string => {
   const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
   const itemsList = order.items
-    ?.map((item: any) => 
-      `• ${item.product.name}: ${item.quantity} ${getFullUnitName(item.product.unit, item.quantity)}`
-    )
+    ?.map((item: any) => {
+      // Use order item unit if available, otherwise fall back to product unit
+      const unit = item.unit || item.product.unit;
+      return `• ${item.product.name}: ${item.quantity} ${getFullUnitName(unit, item.quantity)}`;
+    })
     .join('\n');
 
   return `📦 ΠΑΡΑΓΓΕΛΙΑ - ${order.supplier.name}
@@ -194,19 +196,23 @@ export default function OrderPreview() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {order.items?.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 text-sm text-foreground">
-                        {item.product.name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-foreground text-right font-medium">
-                        {item.quantity}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-foreground">
-                        {getFullUnitName(item.product.unit, item.quantity)}
-                      </td>
-                    </tr>
-                  ))}
+                  {order.items?.map((item) => {
+                    // Use order item unit if available
+                    const displayUnit = item.unit || item.product.unit;
+                    return (
+                      <tr key={item.id}>
+                        <td className="px-4 py-3 text-sm text-foreground">
+                          {item.product.name}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-foreground text-right font-medium">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-foreground">
+                          {getFullUnitName(displayUnit, item.quantity)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

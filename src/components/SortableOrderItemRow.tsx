@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { QuantityInput } from '@/components/QuantityInput';
 import { Button } from '@/components/ui/button';
-import type { OrderItem, Product } from '@/types';
+import type { OrderItem, Product, UnitAbbreviation } from '@/types';
 
 interface SortableOrderItemRowProps {
   item: OrderItem & { product: Product };
@@ -31,6 +31,9 @@ export function SortableOrderItemRow({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Use item.unit (the order-specific unit), fallback to product.unit
+  const displayUnit: UnitAbbreviation = item.unit || item.product.unit;
+
   return (
     <div
       ref={setNodeRef}
@@ -52,15 +55,20 @@ export function SortableOrderItemRow({
           {item.product.name}
         </p>
         <p className="text-sm text-muted-foreground">
-          {item.product.unit}
+          {displayUnit}
         </p>
       </div>
 
-      {/* Quantity Controls */}
-      <QuantityInput
-        value={item.quantity}
-        onChange={(value) => onUpdateQuantity(item.id, value)}
-      />
+      {/* Quantity Controls with Unit */}
+      <div className="flex items-center gap-2">
+        <QuantityInput
+          value={item.quantity}
+          onChange={(value) => onUpdateQuantity(item.id, value)}
+        />
+        <span className="text-sm text-muted-foreground min-w-[2rem]">
+          {displayUnit}
+        </span>
+      </div>
 
       {/* Delete Button */}
       <Button

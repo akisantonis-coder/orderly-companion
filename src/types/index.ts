@@ -6,6 +6,7 @@ export interface Supplier {
   email: string | null;
   phone: string | null;
   created_at: string;
+  sort_order?: number;
 }
 
 export interface Product {
@@ -14,6 +15,7 @@ export interface Product {
   supplier_id: string;
   unit: UnitAbbreviation;
   created_at: string;
+  sort_order?: number;
   supplier?: Supplier;
 }
 
@@ -33,6 +35,8 @@ export interface OrderItem {
   order_id: string;
   product_id: string;
   quantity: number;
+  unit: UnitAbbreviation;
+  sort_order: number;
   created_at: string;
   product?: Product;
 }

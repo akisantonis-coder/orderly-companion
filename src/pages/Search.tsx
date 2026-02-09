@@ -7,7 +7,7 @@ import { AddProductDialog } from '@/components/AddProductDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { useDraftOrders, useCreateOrder, useAddOrderItem } from '@/hooks/useOrders';
 import { useProductSearch, useProductsWithSuppliers } from '@/hooks/useProducts';
-import type { ProductWithSupplier } from '@/types';
+import type { ProductWithSupplier, UnitAbbreviation } from '@/types';
 import { toast } from 'sonner';
 
 export default function Search() {
@@ -34,7 +34,7 @@ export default function Search() {
     setDialogOpen(true);
   };
 
-  const handleAddProduct = async (product: ProductWithSupplier, quantity: number) => {
+  const handleAddProduct = async (product: ProductWithSupplier, quantity: number, unit: UnitAbbreviation) => {
     try {
       let order = draftOrders.find(o => o.supplier_id === product.supplier_id);
 
@@ -44,12 +44,14 @@ export default function Search() {
           orderId: newOrder.id,
           productId: product.id,
           quantity,
+          unit,
         });
       } else {
         await addOrderItem.mutateAsync({
           orderId: order.id,
           productId: product.id,
           quantity,
+          unit,
         });
       }
 

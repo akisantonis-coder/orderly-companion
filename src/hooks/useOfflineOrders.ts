@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { OrderWithDetails, OrderItem, Product, Supplier, UnitAbbreviation } from '@/types';
+import type { Product, Supplier, UnitAbbreviation } from '@/types';
 
 const OFFLINE_ORDERS_KEY = 'offline_orders';
+const OFFLINE_SUPPLIERS_KEY = 'offline_suppliers';
+const OFFLINE_PRODUCTS_KEY = 'offline_products';
 
 export interface OfflineOrderItem {
   id: string;
   product_id: string;
   quantity: number;
+  unit: UnitAbbreviation;
+  sort_order: number;
   product: {
     id: string;
     name: string;
@@ -102,20 +106,24 @@ export function useOfflineOrders() {
           updated_at: new Date().toISOString(),
           items: order.items.map(item =>
             item.product_id === product.id
-              ? { ...item, quantity: item.quantity + quantity }
+              ? { ...item, quantity: item.quantity + quantity, unit }
               : item
           ),
         };
       }
 
+      const maxSortOrder = Math.max(...order.items.map(i => i.sort_order), -1);
+      
       const newItem: OfflineOrderItem = {
         id: generateId(),
         product_id: product.id,
         quantity,
+        unit,
+        sort_order: maxSortOrder + 1,
         product: {
           id: product.id,
           name: product.name,
-          unit,
+          unit: product.unit,
         },
       };
 
@@ -127,15 +135,39 @@ export function useOfflineOrders() {
     }));
   }, []);
 
-  const updateOfflineOrderItem = useCallback((orderId: string, itemId: string, quantity: number) => {
+  const updateOfflineOrderItem = useCallback((
+    orderId: string, 
+    itemId: string, 
+    quantity: number,
+    unit?: UnitAbbreviation
+  ) => {
     setOfflineOrders(prev => prev.map(order => {
       if (order.id !== orderId) return order;
       return {
         ...order,
         updated_at: new Date().toISOString(),
         items: order.items.map(item =>
-          item.id === itemId ? { ...item, quantity } : item
+          item.id === itemId 
+            ? { ...item, quantity, ...(unit && { unit }) } 
+            : item
         ),
+      };
+    }));
+  }, []);
+
+  const updateOfflineOrderItemsOrder = useCallback((
+    orderId: string,
+    itemUpdates: { id: string; sort_order: number }[]
+  ) => {
+    setOfflineOrders(prev => prev.map(order => {
+      if (order.id !== orderId) return order;
+      return {
+        ...order,
+        updated_at: new Date().toISOString(),
+        items: order.items.map(item => {
+          const update = itemUpdates.find(u => u.id === item.id);
+          return update ? { ...item, sort_order: update.sort_order } : item;
+        }).sort((a, b) => a.sort_order - b.sort_order),
       };
     }));
   }, []);
@@ -169,9 +201,56 @@ export function useOfflineOrders() {
     createOfflineOrder,
     addOfflineOrderItem,
     updateOfflineOrderItem,
+    updateOfflineOrderItemsOrder,
     deleteOfflineOrderItem,
     deleteOfflineOrder,
     getOfflineOrderBySupplierId,
     clearOfflineOrder,
   };
+}
+
+// Offline storage for suppliers
+export function useOfflineSuppliers() {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(OFFLINE_SUPPLIERS_KEY);
+    if (stored) {
+      try {
+        setSuppliers(JSON.parse(stored));
+      } catch (e) {
+        console.error('Error parsing offline suppliers:', e);
+      }
+    }
+  }, []);
+
+  const cacheSuppliers = useCallback((newSuppliers: Supplier[]) => {
+    setSuppliers(newSuppliers);
+    localStorage.setItem(OFFLINE_SUPPLIERS_KEY, JSON.stringify(newSuppliers));
+  }, []);
+
+  return { cachedSuppliers: suppliers, cacheSuppliers };
+}
+
+// Offline storage for products
+export function useOfflineProducts() {
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(OFFLINE_PRODUCTS_KEY);
+    if (stored) {
+      try {
+        setProducts(JSON.parse(stored));
+      } catch (e) {
+        console.error('Error parsing offline products:', e);
+      }
+    }
+  }, []);
+
+  const cacheProducts = useCallback((newProducts: Product[]) => {
+    setProducts(newProducts);
+    localStorage.setItem(OFFLINE_PRODUCTS_KEY, JSON.stringify(newProducts));
+  }, []);
+
+  return { cachedProducts: products, cacheProducts };
 }
