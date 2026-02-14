@@ -1,25 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { apiRequest } from '@/lib/api';
 import type { Product, ProductWithSupplier, UnitAbbreviation } from '@/types';
 
 export function useProducts(supplierId?: string) {
   return useQuery({
     queryKey: ['products', supplierId],
     queryFn: async (): Promise<Product[]> => {
-      let query = supabase
-        .from('products')
-        .select('*')
-        .order('sort_order', { ascending: true })
-        .order('name', { ascending: true });
-
-      if (supplierId) {
-        query = query.eq('supplier_id', supplierId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      return data.map(p => ({
+      const url = supplierId
+        ? `/api/products?supplier_id=${supplierId}`
+        : '/api/products';
+      const data = await apiRequest('GET', url);
+      return data.map((p: any) => ({
         ...p,
         unit: p.unit as UnitAbbreviation
       }));
@@ -32,15 +23,7 @@ export function useUpdateProductOrder() {
 
   return useMutation({
     mutationFn: async (products: { id: string; sort_order: number }[]) => {
-      // Update all products in a single batch
-      const updates = products.map(p => 
-        supabase
-          .from('products')
-          .update({ sort_order: p.sort_order })
-          .eq('id', p.id)
-      );
-      
-      await Promise.all(updates);
+      return apiRequest('PUT', '/api/products/order', products);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -53,17 +36,8 @@ export function useProductsWithSuppliers() {
   return useQuery({
     queryKey: ['products-with-suppliers'],
     queryFn: async (): Promise<ProductWithSupplier[]> => {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          supplier:suppliers(*)
-        `)
-        .order('name');
-
-      if (error) throw error;
-      
-      return data.map(p => ({
+      const data = await apiRequest('GET', '/api/products/with-suppliers');
+      return data.map((p: any) => ({
         ...p,
         unit: p.unit as UnitAbbreviation,
         supplier: p.supplier as ProductWithSupplier['supplier']
@@ -73,30 +47,17 @@ export function useProductsWithSuppliers() {
 }
 
 export function useProductSearch(searchTerm: string) {
-  // Sanitize and validate search input
   const sanitizedTerm = searchTerm
     .trim()
-    .slice(0, 100) // Max 100 characters
-    .replace(/[%_]/g, ''); // Remove LIKE wildcards that could affect query
+    .slice(0, 100)
+    .replace(/[%_]/g, '');
 
   return useQuery({
     queryKey: ['product-search', sanitizedTerm],
     queryFn: async (): Promise<ProductWithSupplier[]> => {
       if (sanitizedTerm.length < 2) return [];
-
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          supplier:suppliers(*)
-        `)
-        .ilike('name', `%${sanitizedTerm}%`)
-        .order('name')
-        .limit(20);
-
-      if (error) throw error;
-      
-      return data.map(p => ({
+      const data = await apiRequest('GET', `/api/products/search?q=${encodeURIComponent(sanitizedTerm)}`);
+      return data.map((p: any) => ({
         ...p,
         unit: p.unit as UnitAbbreviation,
         supplier: p.supplier as ProductWithSupplier['supplier']
@@ -111,18 +72,7 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (data: { name: string; supplier_id: string; unit: UnitAbbreviation }) => {
-      const { data: product, error } = await supabase
-        .from('products')
-        .insert({
-          name: data.name,
-          supplier_id: data.supplier_id,
-          unit: data.unit,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return product;
+      return apiRequest('POST', '/api/products', data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -137,24 +87,7 @@ export function useUpdateProduct() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { name: string; unit: UnitAbbreviation; supplier_id?: string } }) => {
-      const updateData: { name: string; unit: string; supplier_id?: string } = {
-        name: data.name,
-        unit: data.unit,
-      };
-      
-      if (data.supplier_id) {
-        updateData.supplier_id = data.supplier_id;
-      }
-      
-      const { data: product, error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return product;
+      return apiRequest('PATCH', `/api/products/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -168,19 +101,10 @@ export function useProductDuplicates(productName: string, currentSupplierId?: st
     queryKey: ['product-duplicates', productName, currentSupplierId],
     queryFn: async (): Promise<ProductWithSupplier[]> => {
       if (!productName || productName.length < 2) return [];
-
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          supplier:suppliers(*)
-        `)
-        .ilike('name', productName)
-        .neq('supplier_id', currentSupplierId || '');
-
-      if (error) throw error;
-      
-      return data.map(p => ({
+      const params = new URLSearchParams({ name: productName });
+      if (currentSupplierId) params.set('exclude_supplier_id', currentSupplierId);
+      const data = await apiRequest('GET', `/api/products/duplicates?${params}`);
+      return data.map((p: any) => ({
         ...p,
         unit: p.unit as UnitAbbreviation,
         supplier: p.supplier as ProductWithSupplier['supplier']
@@ -195,12 +119,7 @@ export function useDeleteProduct() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      return apiRequest('DELETE', `/api/products/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
