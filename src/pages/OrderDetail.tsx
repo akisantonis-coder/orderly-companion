@@ -44,7 +44,9 @@ import { toast } from 'sonner';
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteOrderDialogOpen, setDeleteOrderDialogOpen] = useState(false);
+  const [deleteItemDialogOpen, setDeleteItemDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
 
   const { data: order, isLoading } = useOrder(id);
@@ -93,12 +95,21 @@ export default function OrderDetail() {
     }
   };
 
-  const handleDeleteItem = async (itemId: string) => {
+  const handleDeleteItemClick = (itemId: string) => {
+    setItemToDelete(itemId);
+    setDeleteItemDialogOpen(true);
+  };
+
+  const handleDeleteItemConfirm = async () => {
+    if (!itemToDelete) return;
     try {
-      await deleteOrderItem.mutateAsync(itemId);
+      await deleteOrderItem.mutateAsync(itemToDelete);
       toast.success('Το προϊόν αφαιρέθηκε');
     } catch (error) {
       toast.error('Σφάλμα κατά τη διαγραφή');
+    } finally {
+      setDeleteItemDialogOpen(false);
+      setItemToDelete(null);
     }
   };
 
@@ -197,7 +208,7 @@ export default function OrderDetail() {
                     key={item.id}
                     item={item}
                     onUpdateQuantity={handleUpdateQuantity}
-                    onDelete={handleDeleteItem}
+                    onDelete={handleDeleteItemClick}
                   />
                 ))}
               </div>
@@ -226,7 +237,7 @@ export default function OrderDetail() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => setDeleteDialogOpen(true)}
+                onClick={() => setDeleteOrderDialogOpen(true)}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Διαγραφή
@@ -253,8 +264,26 @@ export default function OrderDetail() {
         )}
       </div>
 
-      {/* Delete Confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Delete Item Confirmation */}
+      <AlertDialog open={deleteItemDialogOpen} onOpenChange={setDeleteItemDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Διαγραφή είδους</AlertDialogTitle>
+            <AlertDialogDescription>
+              Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το είδος από την παραγγελία;
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Όχι</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteItemConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ναι
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Order Confirmation */}
+      <AlertDialog open={deleteOrderDialogOpen} onOpenChange={setDeleteOrderDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Διαγραφή παραγγελίας</AlertDialogTitle>
@@ -263,9 +292,9 @@ export default function OrderDetail() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Ακύρωση</AlertDialogCancel>
+            <AlertDialogCancel>Όχι</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteOrder} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Διαγραφή
+              Ναι
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
