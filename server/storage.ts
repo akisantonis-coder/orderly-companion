@@ -34,9 +34,27 @@ export interface IStorage {
   deleteOrderItem(id: string): Promise<void>;
   findExistingOrderItem(orderId: string, productId: string): Promise<OrderItem | undefined>;
   getMaxOrderItemSortOrder(orderId: string): Promise<number>;
+  getSettings(): Promise<Settings>;
+  updateSettings(data: Partial<InsertSettings>): Promise<Settings>;
 }
 
 export class DatabaseStorage implements IStorage {
+  async getSettings(): Promise<Settings> {
+    const [item] = await db.select().from(settings).where(eq(settings.id, 1));
+    if (!item) {
+      const [newItem] = await db.insert(settings).values({ id: 1 }).returning();
+      return newItem;
+    }
+    return item;
+  }
+
+  async updateSettings(data: Partial<InsertSettings>): Promise<Settings> {
+    const [item] = await db.update(settings)
+      .set({ ...data, updated_at: new Date() })
+      .where(eq(settings.id, 1))
+      .returning();
+    return item;
+  }
   async getSuppliers(): Promise<Supplier[]> {
     return db.select().from(suppliers).orderBy(asc(suppliers.sort_order));
   }
