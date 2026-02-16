@@ -99,18 +99,5 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
-export const settings = pgTable("settings", {
-  id: integer("id").primaryKey().default(1),
-  business_name: text("business_name").notNull().default("Αποθήκη"),
-  email: text("email"),
-  phone: text("phone"),
-  address: text("address"),
-  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const insertSettingsSchema = createInsertSchema(settings).omit({
-  updated_at: true,
-});
-
-export type Settings = typeof settings.$inferSelect;
-export type InsertSettings = z.infer<typeof insertSettingsSchema>;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;

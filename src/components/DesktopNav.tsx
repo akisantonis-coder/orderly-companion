@@ -1,4 +1,4 @@
-import { Home, Search, Package, Truck, Settings } from 'lucide-react';
+import { Home, Search, Package, Truck, Menu } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +7,6 @@ const navItems = [
   { icon: Search, label: 'Αναζήτηση', path: '/search' },
   { icon: Package, label: 'Παραγγελίες', path: '/orders' },
   { icon: Truck, label: 'Προμηθευτές', path: '/suppliers' },
-  { icon: Settings, label: 'Ρυθμίσεις', path: '/settings' },
 ];
 
 export function DesktopNav() {

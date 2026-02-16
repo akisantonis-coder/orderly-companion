@@ -180,15 +180,4 @@ export function registerRoutes(app: Express) {
       message: "Order marked as sent",
     });
   });
-
-  // --- SETTINGS ---
-  app.get("/api/settings", async (_req, res) => {
-    const data = await storage.getSettings();
-    res.json(data);
-  });
-
-  app.patch("/api/settings", async (req, res) => {
-    const data = await storage.updateSettings(req.body);
-    res.json(data);
-  });
 }
