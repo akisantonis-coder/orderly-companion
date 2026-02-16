@@ -26,7 +26,7 @@ export function OrderCard({ order }: OrderCardProps) {
           {order.supplier.name}
         </h3>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {itemCount} {itemCount === 1 ? 'προϊόν' : 'προϊόντα'} • {totalQuantity} τεμ.
+          {itemCount} {itemCount === 1 ? 'είδος' : 'είδη'} • {totalQuantity} τεμ.
         </p>
         <p className="text-xs text-muted-foreground mt-1">
           Τροποποίηση: {formatDistanceToNow(new Date(order.updated_at), { addSuffix: true, locale: el })}

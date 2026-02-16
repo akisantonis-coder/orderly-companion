@@ -104,7 +104,7 @@ export default function OrderDetail() {
     if (!itemToDelete) return;
     try {
       await deleteOrderItem.mutateAsync(itemToDelete);
-      toast.success('Το προϊόν αφαιρέθηκε');
+      toast.success('Το είδος αφαιρέθηκε');
     } catch (error) {
       toast.error('Σφάλμα κατά τη διαγραφή');
     } finally {
@@ -184,7 +184,7 @@ export default function OrderDetail() {
               {order.supplier.name}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {totalItems} προϊόντα • {totalQuantity} τεμ.
+              {totalItems} είδη • {totalQuantity} τεμ.
             </p>
           </div>
         </div>
@@ -217,8 +217,8 @@ export default function OrderDetail() {
         ) : (
           <EmptyState
             icon={Plus}
-            title="Δεν υπάρχουν προϊόντα"
-            description="Προσθέστε προϊόντα στην παραγγελία"
+            title="Δεν υπάρχουν είδη"
+            description="Προσθέστε είδη στην παραγγελία"
             action={
               <Button asChild>
                 <Link to="/search">

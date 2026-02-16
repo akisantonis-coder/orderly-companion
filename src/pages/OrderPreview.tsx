@@ -33,7 +33,7 @@ const generateOrderText = (order: any): string => {
 
 Ημερομηνία: ${date}
 
-Προϊόντα:
+Είδη:
 ${itemsList}
 
 ---
@@ -176,7 +176,7 @@ export default function OrderPreview() {
             <p className="text-foreground">Γεια σας,</p>
             
             <p className="text-foreground">
-              Θα θέλαμε να παραγγείλουμε τα παρακάτω προϊόντα:
+              Θα θέλαμε να παραγγείλουμε τα παρακάτω είδη:
             </p>
 
             {/* Products Table */}
@@ -185,7 +185,7 @@ export default function OrderPreview() {
                 <thead className="bg-muted">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                      Προϊόν
+                      Είδος
                     </th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
                       Ποσότητα

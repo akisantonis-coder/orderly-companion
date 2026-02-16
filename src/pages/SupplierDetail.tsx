@@ -124,7 +124,7 @@ export default function SupplierDetail() {
         });
       }
 
-      toast.success('Το προϊόν προστέθηκε στην παραγγελία');
+      toast.success('Το είδος προστέθηκε στην παραγγελία');
     } catch (error) {
       toast.error('Σφάλμα κατά την προσθήκη');
     }
@@ -156,7 +156,7 @@ export default function SupplierDetail() {
     if (!id) return;
     try {
       await createProduct.mutateAsync({ ...data, supplier_id: id });
-      toast.success('Το προϊόν δημιουργήθηκε');
+      toast.success('Το είδος δημιουργήθηκε');
     } catch (error) {
       toast.error('Σφάλμα κατά τη δημιουργία');
       throw error;
@@ -170,9 +170,9 @@ export default function SupplierDetail() {
       await updateProduct.mutateAsync({ id: editingProduct.id, data });
       
       if (isMovingToOtherSupplier) {
-        toast.success('Το προϊόν μεταφέρθηκε σε άλλον προμηθευτή');
+        toast.success('Το είδος μεταφέρθηκε σε άλλον προμηθευτή');
       } else {
-        toast.success('Το προϊόν ενημερώθηκε');
+        toast.success('Το είδος ενημερώθηκε');
       }
       setEditingProduct(null);
     } catch (error) {
@@ -195,7 +195,7 @@ export default function SupplierDetail() {
     if (!productToDelete) return;
     try {
       await deleteProduct.mutateAsync(productToDelete.id);
-      toast.success('Το προϊόν διαγράφηκε');
+      toast.success('Το είδος διαγράφηκε');
       setProductToDelete(null);
       setDeleteProductOpen(false);
     } catch (error) {
@@ -319,7 +319,7 @@ export default function SupplierDetail() {
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="products">
-              Προϊόντα ({products.length})
+              Είδη ({products.length})
             </TabsTrigger>
             <TabsTrigger value="orders">
               Παραγγελίες ({supplierOrders.length})
@@ -353,7 +353,7 @@ export default function SupplierDetail() {
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Νέο Προϊόν
+                Νέο Είδος
               </Button>
             </div>
             
@@ -417,15 +417,15 @@ export default function SupplierDetail() {
             ) : (
               <EmptyState
                 icon={Package}
-                title="Δεν υπάρχουν προϊόντα"
-                description="Προσθέστε το πρώτο προϊόν για αυτόν τον προμηθευτή"
+                title="Δεν υπάρχουν είδη"
+                description="Προσθέστε το πρώτο είδος για αυτόν τον προμηθευτή"
                 action={
                   <Button onClick={() => {
                     setEditingProduct(null);
                     setProductDialogOpen(true);
                   }}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Νέο Προϊόν
+                    Νέο Είδος
                   </Button>
                 }
               />
@@ -498,8 +498,8 @@ export default function SupplierDetail() {
       <DeleteConfirmDialog
         open={deleteProductOpen}
         onOpenChange={setDeleteProductOpen}
-        title="Διαγραφή Προϊόντος"
-        description={`Είστε σίγουροι ότι θέλετε να διαγράψετε το προϊόν "${productToDelete?.name}";`}
+        title="Διαγραφή Είδους"
+        description={`Είστε σίγουροι ότι θέλετε να διαγράψετε το είδος "${productToDelete?.name}";`}
         onConfirm={handleDeleteProduct}
         isLoading={deleteProduct.isPending}
       />

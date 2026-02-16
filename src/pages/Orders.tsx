@@ -45,7 +45,7 @@ export default function Orders() {
           <EmptyState
             icon={Package}
             title="Δεν υπάρχουν ανοιχτές παραγγελίες"
-            description="Αναζητήστε προϊόντα για να δημιουργήσετε νέα παραγγελία"
+            description="Αναζητήστε είδη για να δημιουργήσετε νέα παραγγελία"
             action={
               <Button asChild>
                 <Link to="/search">

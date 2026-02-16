@@ -55,7 +55,7 @@ export default function Search() {
         });
       }
 
-      toast.success('Το προϊόν προστέθηκε στην παραγγελία');
+      toast.success('Το είδος προστέθηκε στην παραγγελία');
     } catch (error) {
       toast.error('Σφάλμα κατά την προσθήκη');
     }
@@ -77,12 +77,12 @@ export default function Search() {
         {/* Header */}
         <div className="md:hidden">
           <h1 className="text-2xl font-bold text-foreground">Αναζήτηση</h1>
-          <p className="text-muted-foreground mt-1">Βρείτε και προσθέστε προϊόντα</p>
+          <p className="text-muted-foreground mt-1">Βρείτε και προσθέστε είδη</p>
         </div>
 
         {/* Search */}
         <SearchInput
-          placeholder="Αναζήτηση προϊόντων..."
+          placeholder="Αναζήτηση ειδών..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onClear={() => setSearchTerm('')}
@@ -120,12 +120,12 @@ export default function Search() {
           <EmptyState
             icon={SearchIcon}
             title="Δεν βρέθηκαν αποτελέσματα"
-            description={`Δεν βρέθηκαν προϊόντα για "${searchTerm}"`}
+            description={`Δεν βρέθηκαν είδη για "${searchTerm}"`}
           />
         ) : (
           <EmptyState
             icon={SearchIcon}
-            title="Αναζητήστε προϊόντα"
+            title="Αναζητήστε είδη"
             description="Πληκτρολογήστε τουλάχιστον 2 χαρακτήρες για αναζήτηση"
           />
         )}

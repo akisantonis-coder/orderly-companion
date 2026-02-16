@@ -112,7 +112,7 @@ export function ProductDialog({
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Επεξεργασία Προϊόντος' : 'Νέο Προϊόν'}
+            {isEditing ? 'Επεξεργασία Είδους' : 'Νέο Είδος'}
           </DialogTitle>
         </DialogHeader>
 
@@ -123,7 +123,7 @@ export function ProductDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Όνομα Προϊόντος *</FormLabel>
+                  <FormLabel>Όνομα Είδους *</FormLabel>
                   <FormControl>
                     <Input placeholder="π.χ. Γάλα Εβαπορέ 410gr" {...field} />
                   </FormControl>

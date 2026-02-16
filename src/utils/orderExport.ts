@@ -50,7 +50,7 @@ function createPDFElement(order: Order): HTMLDivElement {
     <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
       <thead>
         <tr style="background: #1e3a5f; color: white;">
-          <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Προϊόν</th>
+          <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Είδος</th>
           <th style="padding: 12px 16px; text-align: right; font-weight: 600; width: 100px;">Ποσότητα</th>
           <th style="padding: 12px 16px; text-align: left; font-weight: 600; width: 120px;">Μονάδα</th>
         </tr>
@@ -134,7 +134,7 @@ export function exportOrderToExcel(order: Order): void {
     ['Παραγγελία - ' + order.supplier.name],
     ['Ημερομηνία: ' + date],
     [],
-    ['Προϊόν', 'Ποσότητα', 'Μονάδα'],
+    ['Είδος', 'Ποσότητα', 'Μονάδα'],
     ...(order.items?.map(item => {
       const displayUnit = item.unit || item.product.unit;
       return [

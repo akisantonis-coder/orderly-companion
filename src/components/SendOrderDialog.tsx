@@ -24,7 +24,7 @@ interface SendOrderDialogProps {
 
 const DEFAULT_MESSAGE = `Γεια σας,
 
-Θα θέλαμε να παραγγείλουμε τα παρακάτω προϊόντα.
+Θα θέλαμε να παραγγείλουμε τα παρακάτω είδη.
 
 Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
 
@@ -83,7 +83,7 @@ export function SendOrderDialog({
                   className="resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Το μήνυμα θα εμφανιστεί στο email πριν τον πίνακα προϊόντων.
+                  Το μήνυμα θα εμφανιστεί στο email πριν τον πίνακα ειδών.
                 </p>
               </div>
             </div>

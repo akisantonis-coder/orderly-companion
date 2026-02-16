@@ -53,7 +53,7 @@ export default function Index() {
         });
       }
 
-      toast.success('Το προϊόν προστέθηκε στην παραγγελία');
+      toast.success('Το είδος προστέθηκε στην παραγγελία');
       setSearchTerm('');
     } catch (error) {
       toast.error('Σφάλμα κατά την προσθήκη');
@@ -72,7 +72,7 @@ export default function Index() {
         {/* Search Section */}
         <section>
           <SearchInput
-            placeholder="Αναζήτηση προϊόντων..."
+            placeholder="Αναζήτηση ειδών..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onClear={() => setSearchTerm('')}
@@ -88,7 +88,7 @@ export default function Index() {
               ) : searchResults.length > 0 ? (
                 <>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Βρέθηκαν {searchResults.length} προϊόντα
+                    Βρέθηκαν {searchResults.length} είδη
                   </p>
                   {searchResults.map((product) => (
                     <ProductCard
@@ -100,7 +100,7 @@ export default function Index() {
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  Δεν βρέθηκαν προϊόντα
+                  Δεν βρέθηκαν είδη
                 </p>
               )}
             </div>
@@ -144,7 +144,7 @@ export default function Index() {
               <EmptyState
                 icon={Package}
                 title="Δεν υπάρχουν ανοιχτές παραγγελίες"
-                description="Αναζητήστε προϊόντα για να δημιουργήσετε νέα παραγγελία"
+                description="Αναζητήστε είδη για να δημιουργήσετε νέα παραγγελία"
               />
             )}
           </section>

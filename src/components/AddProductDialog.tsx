@@ -69,7 +69,7 @@ export function AddProductDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-lg">Προσθήκη προϊόντος</DialogTitle>
+          <DialogTitle className="text-lg">Προσθήκη είδους</DialogTitle>
         </DialogHeader>
 
         <div className="py-4 space-y-6">
