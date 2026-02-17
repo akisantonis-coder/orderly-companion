@@ -90,12 +90,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchProducts(term: string): Promise<(Product & { supplier: Supplier })[]> {
-    const result = await db.query.products.findMany({
-      where: ilike(products.name, `%${term}%`),
-      with: { supplier: true },
-      orderBy: [asc(products.name)],
-      limit: 20,
-    });
+    const result = await db.select({
+      id: products.id,
+      name: products.name,
+      supplier_id: products.supplier_id,
+      unit: products.unit,
+      sort_order: products.sort_order,
+      supplier: suppliers
+    })
+    .from(products)
+    .innerJoin(suppliers, eq(products.supplier_id, suppliers.id))
+    .where(
+      sql`${products.name} ILIKE ${`%${term}%`} OR ${suppliers.name} ILIKE ${`%${term}%`}`
+    )
+    .orderBy(asc(products.name))
+    .limit(20);
+
     return result as (Product & { supplier: Supplier })[];
   }
 
