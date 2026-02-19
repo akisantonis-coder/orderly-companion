@@ -246,7 +246,7 @@ export function exportOrderToExcel(order: Order, customText?: string): void {
     }) || []),
     [],
     ['Σύνολο ειδών:', order.items?.length || 0, '']
-  ];
+  );
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
