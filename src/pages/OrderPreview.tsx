@@ -1,16 +1,19 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, FileText, Mail, Share2, Copy, Check, Download } from 'lucide-react';
+import { ArrowLeft, Send, FileText, Mail, Share2, Copy, Check, Download, Edit2, X } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SendOrderDialog } from '@/components/SendOrderDialog';
 import { useOrder, useSendOrder } from '@/hooks/useOrders';
+import { useSettings } from '@/hooks/useSettings';
 import { getFullUnitName } from '@/types';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { useState } from 'react';
-import { exportOrderToPDF, exportOrderToExcel } from '@/utils/orderExport';
+import { useState, useEffect } from 'react';
+import { exportOrderToPDF, exportOrderToExcel, generateOrderText } from '@/utils/orderExport';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,18 +21,44 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-// Generate order text for sharing
-const generateOrderText = (order: any): string => {
-  const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
-  const itemsList = order.items
-    ?.map((item: any) => {
-      // Use order item unit if available, otherwise fall back to product unit
-      const unit = item.unit || item.product.unit;
-      return `• ${item.product.name}: ${item.quantity} ${getFullUnitName(unit, item.quantity)}`;
-    })
-    .join('\n');
+export default function OrderPreview() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isEditingText, setIsEditingText] = useState(false);
+  const [customOrderText, setCustomOrderText] = useState('');
 
-  return `📦 ΠΑΡΑΓΓΕΛΙΑ - ${order.supplier.name}
+  const { data: order, isLoading } = useOrder(id);
+  const { settings } = useSettings();
+  const sendOrder = useSendOrder();
+
+  // Initialize custom text from settings when order loads
+  useEffect(() => {
+    if (order) {
+      const generatedText = generateOrderText(order, settings.defaultOrderText);
+      setCustomOrderText(generatedText);
+    }
+  }, [order, settings.defaultOrderText]);
+
+  // Generate order text for display/sharing
+  const getOrderText = (): string => {
+    if (customOrderText) {
+      return customOrderText;
+    }
+    if (order && settings.defaultOrderText) {
+      return generateOrderText(order, settings.defaultOrderText);
+    }
+    // Fallback to old format
+    const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
+    const itemsList = order?.items
+      ?.map((item: any) => {
+        const unit = item.unit || item.product.unit;
+        return `• ${item.product.name}: ${item.quantity} ${getFullUnitName(unit, item.quantity)}`;
+      })
+      .join('\n') || '';
+
+    return `📦 ΠΑΡΑΓΓΕΛΙΑ - ${order?.supplier.name || ''}
 
 Ημερομηνία: ${date}
 
@@ -38,18 +67,12 @@ ${itemsList}
 
 ---
 Αποστολή από την εφαρμογή Αποθήκη`;
-};
-
-export default function OrderPreview() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  };
 
   const handleShare = async () => {
     if (!order) return;
     
-    const text = generateOrderText(order);
+    const text = getOrderText();
     
     // Try Web Share API first (works on mobile)
     if (navigator.share) {
@@ -72,7 +95,7 @@ export default function OrderPreview() {
   const handleCopy = async () => {
     if (!order) return;
     
-    const text = generateOrderText(order);
+    const text = getOrderText();
     
     try {
       await navigator.clipboard.writeText(text);
@@ -83,9 +106,6 @@ export default function OrderPreview() {
       toast.error('Σφάλμα κατά την αντιγραφή');
     }
   };
-
-  const { data: order, isLoading } = useOrder(id);
-  const sendOrder = useSendOrder();
 
   const handleSendOrder = async (userEmail: string, customMessage: string) => {
     try {
@@ -99,16 +119,29 @@ export default function OrderPreview() {
 
   const handleExportPDF = () => {
     if (order) {
-      exportOrderToPDF(order);
+      exportOrderToPDF(order, customOrderText || settings.defaultOrderText);
       toast.success('Το PDF κατέβηκε');
     }
   };
 
   const handleExportExcel = () => {
     if (order) {
-      exportOrderToExcel(order);
+      exportOrderToExcel(order, customOrderText || settings.defaultOrderText);
       toast.success('Το Excel κατέβηκε');
     }
+  };
+
+  const handleSaveText = () => {
+    setIsEditingText(false);
+    toast.success('Το κείμενο αποθηκεύτηκε');
+  };
+
+  const handleResetText = () => {
+    if (order && settings.defaultOrderText) {
+      const generatedText = generateOrderText(order, settings.defaultOrderText);
+      setCustomOrderText(generatedText);
+    }
+    setIsEditingText(false);
   };
 
   if (isLoading) {
@@ -156,6 +189,23 @@ export default function OrderPreview() {
       </div>
 
       <div className="container py-6 space-y-6">
+        {/* Company Info Card */}
+        {settings.company.name && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{settings.company.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm text-muted-foreground">
+              {settings.company.address && <p>{settings.company.address}</p>}
+              <div className="flex gap-4 flex-wrap">
+                {settings.company.phone && <p>Τηλ: {settings.company.phone}</p>}
+                {settings.company.email && <p>Email: {settings.company.email}</p>}
+                {settings.company.taxId && <p>ΑΦΜ: {settings.company.taxId}</p>}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Email Preview Card */}
         <div className="order-card space-y-6">
           {/* Email Header */}
@@ -171,15 +221,51 @@ export default function OrderPreview() {
             </div>
           </div>
 
-          {/* Email Body */}
+          {/* Order Text Section */}
           <div className="space-y-4">
-            <p className="text-foreground">Γεια σας,</p>
-            
-            <p className="text-foreground">
-              Θα θέλαμε να παραγγείλουμε τα παρακάτω είδη:
-            </p>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-foreground">Κείμενο Παραγγελίας</h3>
+              {!isEditingText && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditingText(true)}
+                >
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Επεξεργασία
+                </Button>
+              )}
+            </div>
 
-            {/* Products Table */}
+            {isEditingText ? (
+              <div className="space-y-3">
+                <Textarea
+                  value={customOrderText}
+                  onChange={(e) => setCustomOrderText(e.target.value)}
+                  rows={10}
+                  className="font-mono text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveText}>
+                    Αποθήκευση
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleResetText}>
+                    Επαναφορά
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border p-4 bg-muted/50">
+                <pre className="whitespace-pre-wrap text-sm text-foreground font-sans">
+                  {getOrderText()}
+                </pre>
+              </div>
+            )}
+          </div>
+
+          {/* Products Table */}
+          <div className="space-y-4">
+            <h3 className="font-semibold text-foreground">Είδη Παραγγελίας</h3>
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full">
                 <thead className="bg-muted">
@@ -216,15 +302,6 @@ export default function OrderPreview() {
                 </tbody>
               </table>
             </div>
-
-            <p className="text-foreground">
-              Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
-            </p>
-
-            <p className="text-foreground">
-              Ευχαριστούμε,<br />
-              Αποθήκη
-            </p>
           </div>
 
           {/* Email Footer */}

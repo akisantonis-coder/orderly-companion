@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { getFullUnitName, UnitAbbreviation } from '@/types';
+import type { AppSettings } from '@/hooks/useSettings';
 
 interface OrderItem {
   product: {
@@ -22,9 +23,75 @@ interface Order {
   items?: OrderItem[];
 }
 
-// Create a hidden element for PDF generation with Greek support
-function createPDFElement(order: Order): HTMLDivElement {
+// Load settings from localStorage
+function getSettings(): AppSettings {
+  const SETTINGS_KEY = 'app_settings';
+  const stored = localStorage.getItem(SETTINGS_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.error('Error parsing settings:', e);
+    }
+  }
+  return {
+    company: {
+      name: '',
+      address: '',
+      phone: '',
+      email: '',
+      taxId: '',
+      website: '',
+    },
+    defaultOrderText: '',
+  };
+}
+
+// Generate order text from template
+export function generateOrderText(order: Order, customText?: string): string {
+  const settings = getSettings();
   const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
+  
+  // Use custom text if provided, otherwise use default template
+  let text = customText !== undefined ? customText : (settings.defaultOrderText || '');
+  
+  // If text is still empty, use fallback template
+  if (!text.trim()) {
+    text = `Γεια σας,
+
+Θα θέλαμε να παραγγείλουμε τα παρακάτω είδη:
+
+[ΕΙΔΗ]
+
+Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
+
+Ευχαριστούμε,
+[ΕΤΑΙΡΙΑ]`;
+  }
+  
+  // Generate items list
+  const itemsList = order.items?.map((item) => {
+    const displayUnit = item.unit || item.product.unit;
+    return `• ${item.product.name}: ${item.quantity} ${getFullUnitName(displayUnit, item.quantity)}`;
+  }).join('\n') || '';
+  
+  // Replace placeholders
+  text = text.replace(/\[ΕΙΔΗ\]/g, itemsList);
+  text = text.replace(/\[ΕΤΑΙΡΙΑ\]/g, settings.company.name || 'Εταιρία');
+  
+  return text;
+}
+
+// Create a hidden element for PDF generation with Greek support
+function createPDFElement(order: Order, customText?: string): HTMLDivElement {
+  const settings = getSettings();
+  const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
+  const orderText = generateOrderText(order, customText);
+  
+  // Format order text with line breaks
+  const formattedText = orderText.split('\n').map(line => 
+    line.trim() ? `<p style="margin: 8px 0; line-height: 1.6;">${line.replace(/•/g, '&bull;')}</p>` : '<p style="margin: 4px 0;"></p>'
+  ).join('');
   
   const container = document.createElement('div');
   container.style.cssText = `
@@ -37,7 +104,21 @@ function createPDFElement(order: Order): HTMLDivElement {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   `;
   
+  // Company header section
+  const companyHeader = settings.company.name ? `
+    <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+      <h2 style="font-size: 20px; font-weight: bold; color: #1e3a5f; margin: 0 0 8px 0;">
+        ${settings.company.name}
+      </h2>
+      ${settings.company.address ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">${settings.company.address}</p>` : ''}
+      ${settings.company.phone ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">Τηλ: ${settings.company.phone}</p>` : ''}
+      ${settings.company.email ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">Email: ${settings.company.email}</p>` : ''}
+      ${settings.company.taxId ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">ΑΦΜ: ${settings.company.taxId}</p>` : ''}
+    </div>
+  ` : '';
+  
   container.innerHTML = `
+    ${companyHeader}
     <div style="margin-bottom: 24px;">
       <h1 style="font-size: 24px; font-weight: bold; color: #1e3a5f; margin: 0 0 8px 0;">
         Παραγγελία - ${order.supplier.name}
@@ -45,6 +126,10 @@ function createPDFElement(order: Order): HTMLDivElement {
       <p style="font-size: 14px; color: #666; margin: 0;">
         Ημερομηνία: ${date}
       </p>
+    </div>
+    
+    <div style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #333;">
+      ${formattedText}
     </div>
     
     <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -78,9 +163,9 @@ function createPDFElement(order: Order): HTMLDivElement {
   return container;
 }
 
-export async function exportOrderToPDF(order: Order): Promise<void> {
+export async function exportOrderToPDF(order: Order, customText?: string): Promise<void> {
   // Create the element for rendering
-  const element = createPDFElement(order);
+  const element = createPDFElement(order, customText);
   document.body.appendChild(element);
   
   try {
@@ -126,13 +211,29 @@ export async function exportOrderToPDF(order: Order): Promise<void> {
   }
 }
 
-export function exportOrderToExcel(order: Order): void {
+export function exportOrderToExcel(order: Order, customText?: string): void {
+  const settings = getSettings();
   const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
+  const orderText = generateOrderText(order, customText);
   
   // Create worksheet data with proper structure
-  const wsData = [
+  const wsData: any[] = [];
+  
+  // Add company info if available
+  if (settings.company.name) {
+    wsData.push([settings.company.name]);
+    if (settings.company.address) wsData.push([settings.company.address]);
+    if (settings.company.phone) wsData.push(['Τηλ: ' + settings.company.phone]);
+    if (settings.company.email) wsData.push(['Email: ' + settings.company.email]);
+    if (settings.company.taxId) wsData.push(['ΑΦΜ: ' + settings.company.taxId]);
+    wsData.push([]);
+  }
+  
+  wsData.push(
     ['Παραγγελία - ' + order.supplier.name],
     ['Ημερομηνία: ' + date],
+    [],
+    ...orderText.split('\n').filter(line => line.trim()).map(line => [line]),
     [],
     ['Είδος', 'Ποσότητα', 'Μονάδα'],
     ...(order.items?.map(item => {

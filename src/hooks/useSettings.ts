@@ -1,0 +1,100 @@
+import { useState, useEffect, useCallback } from 'react';
+
+const SETTINGS_KEY = 'app_settings';
+
+export interface CompanySettings {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  taxId: string;
+  website: string;
+}
+
+export interface AppSettings {
+  company: CompanySettings;
+  defaultOrderText: string;
+}
+
+const defaultSettings: AppSettings = {
+  company: {
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    taxId: '',
+    website: '',
+  },
+  defaultOrderText: `Γεια σας,
+
+Θα θέλαμε να παραγγείλουμε τα παρακάτω είδη:
+
+[ΕΙΔΗ]
+
+Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
+
+Ευχαριστούμε,
+[ΕΤΑΙΡΙΑ]`,
+};
+
+export function useSettings() {
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load settings from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Merge with defaults to handle new fields
+        setSettings({
+          ...defaultSettings,
+          ...parsed,
+          company: {
+            ...defaultSettings.company,
+            ...parsed.company,
+          },
+        });
+      } catch (e) {
+        console.error('Error parsing settings:', e);
+        setSettings(defaultSettings);
+      }
+    } else {
+      setSettings(defaultSettings);
+    }
+    setIsLoading(false);
+  }, []);
+
+  // Save settings to localStorage
+  const updateSettings = useCallback((newSettings: Partial<AppSettings>) => {
+    setSettings(prev => {
+      const updated = {
+        ...prev,
+        ...newSettings,
+        company: {
+          ...prev.company,
+          ...(newSettings.company || {}),
+        },
+      };
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const updateCompany = useCallback((company: Partial<CompanySettings>) => {
+    updateSettings({ company });
+  }, [updateSettings]);
+
+  const updateDefaultOrderText = useCallback((text: string) => {
+    updateSettings({ defaultOrderText: text });
+  }, [updateSettings]);
+
+  return {
+    settings,
+    isLoading,
+    updateSettings,
+    updateCompany,
+    updateDefaultOrderText,
+  };
+}
