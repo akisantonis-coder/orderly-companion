@@ -79,4 +79,7 @@ export default defineConfig(({ mode }) => ({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
+  server: {
+    allowedHosts: [".replit.dev"],
+  },
 }));
