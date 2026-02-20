@@ -38,6 +38,20 @@ app.use((req, res, next) => {
   
   registerRoutes(app);
 
+  // Catch-all 404 handler για οποιοδήποτε /api/* route δεν ταιριάζει σε κανένα endpoint
+  app.use("/api", (req, res) => {
+    if (res.headersSent) return;
+    console.error(
+      "[Server] 404 API route not found:",
+      req.method,
+      req.originalUrl
+    );
+    res.status(404).json({
+      error: "API route not found",
+      path: req.originalUrl,
+    });
+  });
+
   const server = app.listen({
     port: 5000,
     host: "0.0.0.0",
