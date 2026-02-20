@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
+    "dev": "tsx server/index.ts",
     "replit-setup": "npm install && npm run db:check",
     "db:check": "node -e \"if (!process.env.DATABASE_URL) { console.error('ERROR: DATABASE_URL is not set!'); process.exit(1); } else { console.log('✓ DATABASE_URL is set'); }\"",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/index.cjs",

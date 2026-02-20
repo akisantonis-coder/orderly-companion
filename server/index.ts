@@ -52,9 +52,12 @@ app.use((req, res, next) => {
     });
   });
 
+  const PORT = process.env.PORT || 5000;
   const server = app.listen({
-    port: 5000,
+    port: PORT,
     host: "0.0.0.0",
+  }, () => {
+    console.log(`[Server] Express server listening on port ${PORT}`);
   });
 
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -72,11 +75,15 @@ app.use((req, res, next) => {
     }
   });
 
-  if (app.get("env") === "development") {
+  // Στο development, πάντα χρησιμοποιούμε Vite (ακόμα και στο Replit)
+  const isDevelopment = process.env.NODE_ENV !== "production";
+  if (isDevelopment) {
+    console.log("[Server] Setting up Vite middleware...");
     await setupVite(app, server);
   } else {
+    console.log("[Server] Serving static files...");
     serveStatic(app);
   }
 
-  log(`serving on port 5000`);
+  log(`serving on port ${PORT}`);
 })();
