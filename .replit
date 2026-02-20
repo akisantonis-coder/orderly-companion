@@ -29,12 +29,12 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run replit-setup && npm run dev"
-waitForPort = 5000
+args = "npm install && npm run dev"
+waitForPort = 5173
 
 [workflows.workflow.metadata]
 outputType = "webview"
 
 [[ports]]
-localPort = 5000
+localPort = 5173
 externalPort = 80

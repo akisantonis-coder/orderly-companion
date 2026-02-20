@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/api';
+import { storage } from '@/lib/storage';
 import type { Supplier } from '@/types';
 
 export function useSuppliers() {
   return useQuery({
     queryKey: ['suppliers'],
     queryFn: async (): Promise<Supplier[]> => {
-      return apiRequest('GET', '/api/suppliers');
+      return storage.getSuppliers();
     },
   });
 }
@@ -16,7 +16,8 @@ export function useSupplier(id: string | undefined) {
     queryKey: ['supplier', id],
     queryFn: async (): Promise<Supplier | null> => {
       if (!id) return null;
-      return apiRequest('GET', `/api/suppliers/${id}`);
+      const supplier = await storage.getSupplier(id);
+      return supplier || null;
     },
     enabled: !!id,
   });
@@ -29,10 +30,11 @@ export function useCreateSupplier() {
     mutationFn: async (data: { name: string; email?: string; phone?: string }) => {
       console.log('[useCreateSupplier] Creating supplier with data:', data);
       try {
-        const result = await apiRequest('POST', '/api/suppliers', {
+        const result = await storage.createSupplier({
           name: data.name,
           email: data.email || null,
           phone: data.phone || null,
+          sort_order: 0,
         });
         console.log('[useCreateSupplier] Supplier created successfully:', result);
         return result;
@@ -57,7 +59,7 @@ export function useUpdateSupplier() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { name: string; email?: string; phone?: string } }) => {
-      return apiRequest('PATCH', `/api/suppliers/${id}`, {
+      return storage.updateSupplier(id, {
         name: data.name,
         email: data.email || null,
         phone: data.phone || null,
@@ -75,7 +77,7 @@ export function useUpdateSupplierOrder() {
 
   return useMutation({
     mutationFn: async (suppliers: { id: string; sort_order: number }[]) => {
-      return apiRequest('PUT', '/api/suppliers/order', suppliers);
+      await storage.updateSupplierOrders(suppliers);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
@@ -88,7 +90,7 @@ export function useDeleteSupplier() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest('DELETE', `/api/suppliers/${id}`);
+      await storage.deleteSupplier(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });

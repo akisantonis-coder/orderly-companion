@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/api';
+import { storage } from '@/lib/storage';
 import type { Order, OrderItem, OrderWithDetails, UnitAbbreviation } from '@/types';
 
 export function useDraftOrders() {
   return useQuery({
     queryKey: ['draft-orders'],
     queryFn: async (): Promise<OrderWithDetails[]> => {
-      const data = await apiRequest('GET', '/api/orders/draft');
+      const data = await storage.getDraftOrders();
       return data.map((order: any) => ({
         ...order,
         status: order.status as Order['status'],
@@ -30,7 +30,8 @@ export function useOrder(orderId: string | undefined) {
     queryKey: ['order', orderId],
     queryFn: async (): Promise<OrderWithDetails | null> => {
       if (!orderId) return null;
-      const data = await apiRequest('GET', `/api/orders/${orderId}`);
+      const data = await storage.getOrder(orderId);
+      if (!data) return null;
       return {
         ...data,
         status: data.status as Order['status'],
@@ -55,7 +56,7 @@ export function useOrderBySupplierId(supplierId: string | undefined) {
     queryKey: ['order-by-supplier', supplierId],
     queryFn: async (): Promise<OrderWithDetails | null> => {
       if (!supplierId) return null;
-      const data = await apiRequest('GET', `/api/orders/by-supplier/${supplierId}`);
+      const data = await storage.getOrderBySupplierId(supplierId);
       if (!data) return null;
       return {
         ...data,
@@ -81,7 +82,10 @@ export function useCreateOrder() {
 
   return useMutation({
     mutationFn: async (supplierId: string): Promise<Order> => {
-      const data = await apiRequest('POST', '/api/orders', { supplier_id: supplierId });
+      const data = await storage.createOrder({ 
+        supplier_id: supplierId,
+        status: 'draft',
+      });
       return {
         ...data,
         status: data.status as Order['status']
@@ -109,13 +113,34 @@ export function useAddOrderItem() {
       quantity: number;
       unit: UnitAbbreviation;
     }): Promise<OrderItem> => {
-      const data = await apiRequest('POST', '/api/order-items', {
+      // Check if item already exists
+      const existing = await storage.findExistingOrderItem(orderId, productId);
+      
+      if (existing) {
+        // Update existing item
+        const updated = await storage.updateOrderItem(existing.id, {
+          quantity: String(Number(existing.quantity) + quantity),
+          unit,
+        });
+        // Update order timestamp
+        await storage.updateOrder(orderId, { updated_at: new Date() });
+        return { ...updated, quantity: Number(updated.quantity), unit: updated.unit as UnitAbbreviation };
+      }
+
+      // Create new item
+      const maxSortOrder = await storage.getMaxOrderItemSortOrder(orderId);
+      const item = await storage.addOrderItem({
         order_id: orderId,
         product_id: productId,
-        quantity,
+        quantity: String(quantity),
         unit,
+        sort_order: maxSortOrder + 1,
       });
-      return { ...data, quantity: Number(data.quantity), unit: data.unit as UnitAbbreviation };
+      
+      // Update order timestamp
+      await storage.updateOrder(orderId, { updated_at: new Date() });
+      
+      return { ...item, quantity: Number(item.quantity), unit: item.unit as UnitAbbreviation };
     },
     onSuccess: (_, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: ['order', orderId] });
@@ -141,7 +166,15 @@ export function useUpdateOrderItem() {
       const updateData: any = { quantity: String(quantity) };
       if (unit) updateData.unit = unit;
 
-      const data = await apiRequest('PATCH', `/api/order-items/${itemId}`, updateData);
+      const data = await storage.updateOrderItem(itemId, updateData);
+      if (!data) throw new Error('Order item not found');
+      
+      // Update order timestamp
+      const orderItem = await storage.getOrderItem(itemId);
+      if (orderItem) {
+        await storage.updateOrder(orderItem.order_id, { updated_at: new Date() });
+      }
+      
       return { ...data, quantity: Number(data.quantity), unit: data.unit as UnitAbbreviation };
     },
     onSuccess: () => {
@@ -157,7 +190,7 @@ export function useUpdateOrderItemsOrder() {
 
   return useMutation({
     mutationFn: async (items: { id: string; sort_order: number }[]) => {
-      return apiRequest('PUT', '/api/order-items/order', items);
+      await storage.updateOrderItemOrders(items);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['order'] });
@@ -172,7 +205,13 @@ export function useDeleteOrderItem() {
 
   return useMutation({
     mutationFn: async (itemId: string): Promise<void> => {
-      await apiRequest('DELETE', `/api/order-items/${itemId}`);
+      const item = await storage.getOrderItem(itemId);
+      await storage.deleteOrderItem(itemId);
+      
+      // Update order timestamp
+      if (item) {
+        await storage.updateOrder(item.order_id, { updated_at: new Date() });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['order'] });
@@ -187,7 +226,7 @@ export function useDeleteOrder() {
 
   return useMutation({
     mutationFn: async (orderId: string): Promise<void> => {
-      await apiRequest('DELETE', `/api/orders/${orderId}`);
+      await storage.deleteOrder(orderId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draft-orders'] });
@@ -209,7 +248,13 @@ export function useSendOrder() {
       userEmail: string;
       customMessage?: string;
     }): Promise<{ success: boolean; userEmail?: string }> => {
-      return apiRequest('POST', `/api/orders/${orderId}/send`, { userEmail, customMessage });
+      // Mark order as sent (offline - no email sending)
+      await storage.updateOrder(orderId, {
+        status: 'sent',
+        sent_at: new Date(),
+      });
+      
+      return { success: true, userEmail };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['draft-orders'] });
