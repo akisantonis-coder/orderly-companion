@@ -32,6 +32,10 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  console.log("[Server] Starting server...");
+  console.log("[Server] NODE_ENV:", process.env.NODE_ENV || "development");
+  console.log("[Server] DATABASE_URL:", process.env.DATABASE_URL ? `Set (${process.env.DATABASE_URL.length} chars)` : "NOT SET");
+  
   registerRoutes(app);
 
   const server = app.listen({
@@ -42,8 +46,16 @@ app.use((req, res, next) => {
   app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    throw err;
+    console.error("[Server] Unhandled error:", err);
+    console.error("[Server] Error stack:", err?.stack);
+    res.status(status).json({ 
+      message,
+      error: process.env.NODE_ENV === 'development' ? err?.message : undefined,
+      stack: process.env.NODE_ENV === 'development' ? err?.stack : undefined
+    });
+    if (process.env.NODE_ENV === 'development') {
+      throw err;
+    }
   });
 
   if (app.get("env") === "development") {

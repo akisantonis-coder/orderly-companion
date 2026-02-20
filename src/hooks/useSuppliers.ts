@@ -27,14 +27,27 @@ export function useCreateSupplier() {
 
   return useMutation({
     mutationFn: async (data: { name: string; email?: string; phone?: string }) => {
-      return apiRequest('POST', '/api/suppliers', {
-        name: data.name,
-        email: data.email || null,
-        phone: data.phone || null,
-      });
+      console.log('[useCreateSupplier] Creating supplier with data:', data);
+      try {
+        const result = await apiRequest('POST', '/api/suppliers', {
+          name: data.name,
+          email: data.email || null,
+          phone: data.phone || null,
+        });
+        console.log('[useCreateSupplier] Supplier created successfully:', result);
+        return result;
+      } catch (error: any) {
+        console.error('[useCreateSupplier] Error creating supplier:', error);
+        console.error('[useCreateSupplier] Error message:', error?.message);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log('[useCreateSupplier] Invalidating suppliers query');
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    },
+    onError: (error: any) => {
+      console.error('[useCreateSupplier] Mutation error:', error);
     },
   });
 }

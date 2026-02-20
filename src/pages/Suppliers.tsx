@@ -83,12 +83,17 @@ export default function Suppliers() {
   };
 
   const handleCreateSupplier = async (data: { name: string; email?: string; phone?: string }) => {
+    console.log('[Suppliers] handleCreateSupplier - Starting with data:', data);
     try {
-      await createSupplier.mutateAsync(data);
+      const result = await createSupplier.mutateAsync(data);
+      console.log('[Suppliers] handleCreateSupplier - Success:', result);
       toast.success('Ο προμηθευτής δημιουργήθηκε');
-    } catch {
-      toast.error('Σφάλμα κατά τη δημιουργία');
-      throw new Error('Failed to create supplier');
+    } catch (error: any) {
+      console.error('[Suppliers] handleCreateSupplier - Error:', error);
+      console.error('[Suppliers] handleCreateSupplier - Error message:', error?.message);
+      const errorMessage = error?.message || 'Σφάλμα κατά τη δημιουργία';
+      toast.error(`Σφάλμα κατά τη δημιουργία: ${errorMessage}`);
+      throw error;
     }
   };
 

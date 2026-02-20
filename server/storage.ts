@@ -47,14 +47,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSupplier(data: InsertSupplier): Promise<Supplier> {
-    const [maxItem] = await db.select({ max: sql<number>`COALESCE(MAX(${suppliers.sort_order}), -1)` }).from(suppliers);
-    const nextSortOrder = (maxItem?.max ?? -1) + 1;
+    try {
+      console.log("[Storage] createSupplier - Input data:", JSON.stringify(data));
+      
+      console.log("[Storage] createSupplier - Getting max sort_order...");
+      const [maxItem] = await db.select({ max: sql<number>`COALESCE(MAX(${suppliers.sort_order}), -1)` }).from(suppliers);
+      const nextSortOrder = (maxItem?.max ?? -1) + 1;
+      console.log("[Storage] createSupplier - Max sort_order:", maxItem?.max, "Next:", nextSortOrder);
 
-    const [supplier] = await db.insert(suppliers).values({
-      ...data,
-      sort_order: data.sort_order ?? nextSortOrder,
-    }).returning();
-    return supplier;
+      const insertData = {
+        ...data,
+        sort_order: data.sort_order ?? nextSortOrder,
+      };
+      console.log("[Storage] createSupplier - Inserting with data:", JSON.stringify(insertData));
+      
+      const [supplier] = await db.insert(suppliers).values(insertData).returning();
+      
+      if (!supplier) {
+        throw new Error("Failed to create supplier - no data returned");
+      }
+      
+      console.log("[Storage] createSupplier - Success! Created supplier:", supplier.id, supplier.name);
+      return supplier;
+    } catch (error: any) {
+      console.error("[Storage] createSupplier - Error:", error);
+      console.error("[Storage] createSupplier - Error message:", error?.message);
+      console.error("[Storage] createSupplier - Error code:", error?.code);
+      console.error("[Storage] createSupplier - Error detail:", error?.detail);
+      console.error("[Storage] createSupplier - Error stack:", error?.stack);
+      throw error;
+    }
   }
 
   async updateSupplier(id: string, data: Partial<InsertSupplier>): Promise<Supplier | undefined> {

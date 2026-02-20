@@ -16,10 +16,25 @@ export function registerRoutes(app: Express) {
   });
 
   app.post("/api/suppliers", async (req, res) => {
-    const parsed = insertSupplierSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-    const supplier = await storage.createSupplier(parsed.data);
-    res.status(201).json(supplier);
+    try {
+      console.log("[API] POST /api/suppliers - Request body:", JSON.stringify(req.body));
+      const parsed = insertSupplierSchema.safeParse(req.body);
+      if (!parsed.success) {
+        console.error("[API] POST /api/suppliers - Validation error:", parsed.error.message);
+        return res.status(400).json({ error: parsed.error.message });
+      }
+      console.log("[API] POST /api/suppliers - Parsed data:", JSON.stringify(parsed.data));
+      const supplier = await storage.createSupplier(parsed.data);
+      console.log("[API] POST /api/suppliers - Supplier created successfully:", supplier.id);
+      res.status(201).json(supplier);
+    } catch (error: any) {
+      console.error("[API] POST /api/suppliers - Error:", error);
+      console.error("[API] POST /api/suppliers - Error stack:", error?.stack);
+      res.status(500).json({ 
+        error: error?.message || "Internal server error",
+        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      });
+    }
   });
 
   app.patch("/api/suppliers/:id", async (req, res) => {
