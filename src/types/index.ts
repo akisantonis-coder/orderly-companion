@@ -79,3 +79,6 @@ export interface OrderWithDetails extends Order {
 export interface ProductWithSupplier extends Product {
   supplier: Supplier;
 }
+
+// Order item with product populated
+export type OrderItemWithProduct = OrderItem & { product: Product };

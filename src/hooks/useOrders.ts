@@ -185,21 +185,6 @@ export function useUpdateOrderItem() {
   });
 }
 
-export function useUpdateOrderItemsOrder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (items: { id: string; sort_order: number }[]) => {
-      await storage.updateOrderItemOrders(items);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['order'] });
-      queryClient.invalidateQueries({ queryKey: ['draft-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['order-by-supplier'] });
-    },
-  });
-}
-
 export function useDeleteOrderItem() {
   const queryClient = useQueryClient();
 

@@ -1,23 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Send, Trash2, Eye, Plus } from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
 import { Layout } from '@/components/Layout';
-import { SortableOrderItemRow } from '@/components/SortableOrderItemRow';
+import { OrderItemRow } from '@/components/OrderItemRow';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { SendOrderDialog } from '@/components/SendOrderDialog';
@@ -37,7 +22,6 @@ import {
   useDeleteOrderItem,
   useDeleteOrder,
   useSendOrder,
-  useUpdateOrderItemsOrder,
 } from '@/hooks/useOrders';
 import { toast } from 'sonner';
 
@@ -54,38 +38,6 @@ export default function OrderDetail() {
   const deleteOrderItem = useDeleteOrderItem();
   const deleteOrder = useDeleteOrder();
   const sendOrder = useSendOrder();
-  const updateOrderItemsOrder = useUpdateOrderItemsOrder();
-
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id && order?.items) {
-      const oldIndex = order.items.findIndex(item => item.id === active.id);
-      const newIndex = order.items.findIndex(item => item.id === over.id);
-      
-      const newItems = arrayMove(order.items, oldIndex, newIndex);
-      
-      // Update sort_order for all items
-      const updates = newItems.map((item, index) => ({
-        id: item.id,
-        sort_order: index,
-      }));
-      
-      updateOrderItemsOrder.mutate(updates);
-    }
-  };
 
   const handleUpdateQuantity = async (itemId: string, quantity: number) => {
     try {
@@ -193,27 +145,16 @@ export default function OrderDetail() {
       <div className="container py-6 space-y-4">
         {/* Order Items */}
         {order.items && order.items.length > 0 ? (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={order.items.map(item => item.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {order.items.map((item) => (
-                  <SortableOrderItemRow
-                    key={item.id}
-                    item={item}
-                    onUpdateQuantity={handleUpdateQuantity}
-                    onDelete={handleDeleteItemClick}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <div className="space-y-2">
+            {order.items.map((item) => (
+              <OrderItemRow
+                key={item.id}
+                item={item}
+                onUpdateQuantity={handleUpdateQuantity}
+                onDelete={handleDeleteItemClick}
+              />
+            ))}
+          </div>
         ) : (
           <EmptyState
             icon={Plus}
