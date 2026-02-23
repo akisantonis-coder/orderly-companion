@@ -21,11 +21,13 @@ import { SupplierDialog } from '@/components/SupplierDialog';
 import { EmptyState } from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
 import { useSuppliers, useCreateSupplier, useUpdateSupplierOrder } from '@/hooks/useSuppliers';
+import { useProductCountBySupplier } from '@/hooks/useProducts';
 import { useDraftOrders } from '@/hooks/useOrders';
 import { toast } from 'sonner';
 
 export default function Suppliers() {
   const { data: suppliers = [], isLoading } = useSuppliers();
+  const { data: productCountBySupplier = {} } = useProductCountBySupplier();
   const { data: draftOrders = [] } = useDraftOrders();
   const createSupplier = useCreateSupplier();
   const updateSupplierOrder = useUpdateSupplierOrder();
@@ -50,14 +52,14 @@ export default function Suppliers() {
     return acc;
   }, {} as Record<string, number>);
 
-  // Sort suppliers: those with open orders first, then by sort_order
+  // Sort suppliers: those with products first, then by sort_order
   const sortedSuppliers = [...suppliers].sort((a, b) => {
-    const aHasOrders = orderCountBySupplier[a.id] || 0;
-    const bHasOrders = orderCountBySupplier[b.id] || 0;
+    const aHasProducts = productCountBySupplier[a.id] || 0;
+    const bHasProducts = productCountBySupplier[b.id] || 0;
     
-    // Suppliers with orders come first
-    if (aHasOrders > 0 && bHasOrders === 0) return -1;
-    if (bHasOrders > 0 && aHasOrders === 0) return 1;
+    // Suppliers with products come first
+    if (aHasProducts > 0 && bHasProducts === 0) return -1;
+    if (bHasProducts > 0 && aHasProducts === 0) return 1;
     
     // Then sort by sort_order
     return (a.sort_order || 0) - (b.sort_order || 0);
@@ -157,7 +159,7 @@ export default function Suppliers() {
                     <SortableSupplierCard
                       key={supplier.id}
                       supplier={supplier}
-                      orderCount={orderCountBySupplier[supplier.id] || 0}
+                      productCount={productCountBySupplier[supplier.id] || 0}
                       isDragEnabled={true}
                     />
                   ))}
@@ -171,7 +173,7 @@ export default function Suppliers() {
                 <SortableSupplierCard
                   key={supplier.id}
                   supplier={supplier}
-                  orderCount={orderCountBySupplier[supplier.id] || 0}
+                  productCount={productCountBySupplier[supplier.id] || 0}
                   isDragEnabled={false}
                 />
               ))}

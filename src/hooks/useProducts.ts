@@ -11,6 +11,19 @@ export function useProducts(supplierId?: string) {
   });
 }
 
+export function useProductCountBySupplier() {
+  return useQuery({
+    queryKey: ['product-count-by-supplier'],
+    queryFn: async (): Promise<Record<string, number>> => {
+      const products = await storage.getProducts();
+      return products.reduce((acc, product) => {
+        acc[product.supplier_id] = (acc[product.supplier_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+    },
+  });
+}
+
 export function useUpdateProductOrder() {
   const queryClient = useQueryClient();
 

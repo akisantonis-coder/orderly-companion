@@ -1,7 +1,7 @@
 {
   "name": "Αποθήκη - Διαχείριση Παραγγελιών",
   "short_name": "Αποθήκη",
-  "description": "Offline PWA για διαχείριση παραγγελιών και προμηθευτών αποθήκης",
+  "description": "Offline PWA για διαχείριση παραγγελιών και προμηθευτών αποθήκης. Πλήρως λειτουργική χωρίς σύνδεση στο internet.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -11,6 +11,7 @@
   "categories": ["business", "productivity"],
   "lang": "el",
   "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -67,5 +68,11 @@
       "text": "text",
       "url": "url"
     }
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
   }
 }

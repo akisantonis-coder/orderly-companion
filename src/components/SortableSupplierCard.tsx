@@ -6,13 +6,13 @@ import type { Supplier } from '@/types';
 
 interface SortableSupplierCardProps {
   supplier: Supplier;
-  orderCount?: number;
+  productCount?: number;
   isDragEnabled: boolean;
 }
 
 export function SortableSupplierCard({ 
   supplier, 
-  orderCount = 0,
+  productCount = 0,
   isDragEnabled 
 }: SortableSupplierCardProps) {
   const {
@@ -79,9 +79,9 @@ export function SortableSupplierCard({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {orderCount > 0 && (
+          {productCount > 0 && (
             <span className="order-badge bg-primary text-primary-foreground">
-              {orderCount}
+              {productCount}
             </span>
           )}
           <ChevronRight className="h-5 w-5 text-muted-foreground" />

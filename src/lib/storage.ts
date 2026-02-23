@@ -20,6 +20,7 @@ export interface IStorage {
   getDraftOrders(): Promise<any[]>;
   getOrder(id: string): Promise<any | undefined>;
   getOrderBySupplierId(supplierId: string): Promise<any | undefined>;
+  getAllOrders(): Promise<any[]>;
   createOrder(data: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<Order>;
   updateOrder(id: string, data: Partial<Order>): Promise<Order | undefined>;
   deleteOrder(id: string): Promise<void>;
@@ -31,6 +32,8 @@ export interface IStorage {
   deleteOrderItem(id: string): Promise<void>;
   findExistingOrderItem(orderId: string, productId: string): Promise<OrderItem | undefined>;
   getMaxOrderItemSortOrder(orderId: string): Promise<number>;
+
+  clearAllData(): Promise<void>;
 }
 
 export class IndexedDBStorage implements IStorage {
@@ -329,6 +332,19 @@ export class IndexedDBStorage implements IStorage {
     
     if (items.length === 0) return -1;
     return items[items.length - 1].sort_order;
+  }
+
+  async getAllOrders(): Promise<any[]> {
+    return db.orders.toArray();
+  }
+
+  async clearAllData(): Promise<void> {
+    await db.transaction('rw', db.suppliers, db.products, db.orders, db.orderItems, async () => {
+      await db.suppliers.clear();
+      await db.products.clear();
+      await db.orders.clear();
+      await db.orderItems.clear();
+    });
   }
 }
 

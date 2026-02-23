@@ -15,7 +15,7 @@ interface QuantityInputProps {
 export function QuantityInput({
   value,
   onChange,
-  min = 1,
+  min = 0,
   max = 9999,
   step = 1,
   unit,
@@ -42,11 +42,11 @@ export function QuantityInput({
         type="button"
         variant="outline"
         size="icon"
-        className="h-10 w-10 rounded-lg shrink-0"
+        className="h-8 w-8 rounded-lg shrink-0"
         onClick={handleDecrement}
         disabled={value <= min}
       >
-        <Minus className="h-4 w-4" />
+        <Minus className="h-3 w-3" />
       </Button>
 
       <div className="relative flex-1 max-w-24">
@@ -66,11 +66,11 @@ export function QuantityInput({
         type="button"
         variant="outline"
         size="icon"
-        className="h-10 w-10 rounded-lg shrink-0"
+        className="h-8 w-8 rounded-lg shrink-0"
         onClick={handleIncrement}
         disabled={value >= max}
       >
-        <Plus className="h-4 w-4" />
+        <Plus className="h-3 w-3" />
       </Button>
 
       {unit && (

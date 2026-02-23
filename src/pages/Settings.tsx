@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useSettings } from '@/hooks/useSettings';
+import { storage } from '@/lib/storage';
 import { toast } from 'sonner';
-import { Settings as SettingsIcon, Building2, FileText, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Building2, FileText, Save, Download, Upload } from 'lucide-react';
 
 export default function Settings() {
   const { settings, isLoading, updateCompany, updateDefaultOrderText } = useSettings();
@@ -38,6 +39,97 @@ export default function Settings() {
     updateDefaultOrderText(defaultText);
     setHasChanges(false);
     toast.success('Οι ρυθμίσεις αποθηκεύτηκαν');
+  };
+
+  // Backup functionality
+  const handleBackup = async () => {
+    try {
+      const backupData = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        data: {
+          suppliers: await storage.getSuppliers(),
+          products: await storage.getProducts(),
+          orders: await storage.getAllOrders(),
+          settings: settings
+        }
+      };
+      
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `apothiki-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Το backup δημιουργήθηκε με επιτυχία');
+    } catch (error) {
+      console.error('Backup failed:', error);
+      toast.error('Αποτυχία δημιουργίας backup');
+    }
+  };
+
+  // Restore functionality
+  const handleRestore = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const backupData = JSON.parse(text);
+        
+        if (!backupData.data) {
+          throw new Error('Invalid backup file format');
+        }
+
+        // Clear existing data
+        await storage.clearAllData();
+        
+        // Restore data
+        if (backupData.data.suppliers) {
+          for (const supplier of backupData.data.suppliers) {
+            await storage.createSupplier(supplier);
+          }
+        }
+        
+        if (backupData.data.products) {
+          for (const product of backupData.data.products) {
+            await storage.createProduct(product);
+          }
+        }
+        
+        if (backupData.data.orders) {
+          for (const order of backupData.data.orders) {
+            await storage.createOrder(order);
+          }
+        }
+
+        // Restore settings
+        if (backupData.data.settings) {
+          localStorage.setItem('app_settings', JSON.stringify(backupData.data.settings));
+        }
+
+        toast.success('Η επαναφορά ολοκληρώθηκε. Επανεκκινήστε την εφαρμογή.');
+        
+        // Reload after 2 seconds
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        
+      } catch (error) {
+        console.error('Restore failed:', error);
+        toast.error('Αποτυχία επαναφοράς. Ελέγξτε το αρχείο backup.');
+      }
+    };
+    
+    input.click();
   };
 
   if (isLoading) {
@@ -162,6 +254,43 @@ export default function Settings() {
                 Μεταβλητές: [ΕΙΔΗ] = λίστα ειδών, [ΕΤΑΙΡΙΑ] = όνομα εταιρίας
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Backup/Restore */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Save className="h-5 w-5 text-primary" />
+              <CardTitle>Αντίγραφο Ασφαλείας</CardTitle>
+            </div>
+            <CardDescription>
+              Δημιουργήστε αντίγραφο ασφαλείας όλων των δεδομένων σας ή επαναφέρετε από υπάρχον backup
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button 
+                onClick={handleBackup} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Δημιουργία Backup
+              </Button>
+              <Button 
+                onClick={handleRestore} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Επαναφορά Backup
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Το backup περιλαμβάνει προμηθευτές, προϊόντα, παραγγελίες και ρυθμίσεις. 
+              Η επαναφορά θα αντικαταστήσει όλα τα υπάρχοντα δεδομένα.
+            </p>
           </CardContent>
         </Card>
 

@@ -37,28 +37,28 @@ export function AddProductDialog({
   onOpenChange,
   onConfirm,
 }: AddProductDialogProps) {
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(0);
   const [unit, setUnit] = useState<UnitAbbreviation>('τεμ');
 
   // Reset unit to product's unit when dialog opens
   useEffect(() => {
     if (product && open) {
       setUnit(product.unit);
-      setQuantity(1);
+      setQuantity(0);
     }
   }, [product, open]);
 
   const handleConfirm = () => {
     if (product) {
       onConfirm(product, quantity, unit);
-      setQuantity(1);
+      setQuantity(0);
       onOpenChange(false);
     }
   };
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      setQuantity(1);
+      setQuantity(0);
     }
     onOpenChange(newOpen);
   };
