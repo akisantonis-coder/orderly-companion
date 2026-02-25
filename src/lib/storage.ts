@@ -1,4 +1,4 @@
-import { db, generateId, type Supplier, type Product, type Order, type OrderItem } from './db';
+import { db, generateId, type Supplier, type Product, type Order, type OrderItem, type PdfSettings } from './db';
 
 export interface IStorage {
   getSuppliers(): Promise<Supplier[]>;
@@ -33,10 +33,38 @@ export interface IStorage {
   findExistingOrderItem(orderId: string, productId: string): Promise<OrderItem | undefined>;
   getMaxOrderItemSortOrder(orderId: string): Promise<number>;
 
+  getPdfSettings(): Promise<PdfSettings>;
+  updatePdfSettings(data: Partial<PdfSettings>): Promise<PdfSettings>;
+
   clearAllData(): Promise<void>;
 }
 
 export class IndexedDBStorage implements IStorage {
+  async getPdfSettings(): Promise<PdfSettings> {
+    let current = await db.settings.get('app');
+    if (!current) {
+      current = {
+        id: 'app',
+        pdfIntroduction: '',
+        pdfFooter: '',
+        updated_at: new Date(),
+      };
+      await db.settings.add(current);
+    }
+    return current;
+  }
+
+  async updatePdfSettings(data: Partial<PdfSettings>): Promise<PdfSettings> {
+    const current = await this.getPdfSettings();
+    const updated: PdfSettings = {
+      ...current,
+      ...data,
+      updated_at: new Date(),
+    };
+    await db.settings.put(updated);
+    return updated;
+  }
+
   // ========== SUPPLIERS ==========
   async getSuppliers(): Promise<Supplier[]> {
     return db.suppliers.orderBy('sort_order').toArray();

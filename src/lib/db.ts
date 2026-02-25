@@ -39,11 +39,19 @@ export interface OrderItem {
   created_at: Date;
 }
 
+export interface PdfSettings {
+  id: string;
+  pdfIntroduction: string;
+  pdfFooter: string;
+  updated_at: Date;
+}
+
 export class AppDatabase extends Dexie {
   suppliers!: Table<Supplier>;
   products!: Table<Product>;
   orders!: Table<Order>;
   orderItems!: Table<OrderItem>;
+  settings!: Table<PdfSettings>;
 
   constructor() {
     super('WarehouseAppDB');
@@ -52,6 +60,13 @@ export class AppDatabase extends Dexie {
       products: 'id, supplier_id, name, sort_order',
       orders: 'id, supplier_id, status, created_at',
       orderItems: 'id, order_id, product_id, [order_id+product_id]',
+    });
+    this.version(3).stores({
+      suppliers: 'id, name, sort_order',
+      products: 'id, supplier_id, name, sort_order',
+      orders: 'id, supplier_id, status, created_at',
+      orderItems: 'id, order_id, product_id, [order_id+product_id]',
+      settings: 'id',
     });
   }
 }

@@ -17,12 +17,45 @@ export default function Settings() {
   const [company, setCompany] = useState(settings.company);
   const [defaultText, setDefaultText] = useState(settings.defaultOrderText);
   const [hasChanges, setHasChanges] = useState(false);
+  const [pdfIntroduction, setPdfIntroduction] = useState('');
+  const [pdfFooter, setPdfFooter] = useState('');
 
   useEffect(() => {
     setCompany(settings.company);
     setDefaultText(settings.defaultOrderText);
     setHasChanges(false);
   }, [settings]);
+
+  // Load PDF settings from Dexie
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const pdf = await storage.getPdfSettings();
+        if (!mounted) return;
+        setPdfIntroduction(pdf.pdfIntroduction || '');
+        setPdfFooter(pdf.pdfFooter || '');
+      } catch (e) {
+        console.error('Failed to load PDF settings', e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Auto-save to Dexie with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      storage.updatePdfSettings({
+        pdfIntroduction,
+        pdfFooter,
+      }).catch((e) => {
+        console.error('Failed to save PDF settings', e);
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [pdfIntroduction, pdfFooter]);
 
   const handleCompanyChange = (field: keyof typeof company, value: string) => {
     setCompany(prev => ({ ...prev, [field]: value }));
@@ -254,6 +287,125 @@ export default function Settings() {
                 Μεταβλητές: [ΕΙΔΗ] = λίστα ειδών, [ΕΤΑΙΡΙΑ] = όνομα εταιρίας
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* PDF Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <CardTitle>PDF Settings</CardTitle>
+            </div>
+            <CardDescription>
+              Configure additional text that appears at the start and end of PDFs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pdf-intro">PDF Introduction</Label>
+              <Textarea
+                id="pdf-intro"
+                value={pdfIntroduction}
+                onChange={(e) => setPdfIntroduction(e.target.value)}
+                placeholder="Optional text that appears at the top of the PDF..."
+                rows={6}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pdf-footer">PDF Footer</Label>
+              <Textarea
+                id="pdf-footer"
+                value={pdfFooter}
+                onChange={(e) => setPdfFooter(e.target.value)}
+                placeholder="Optional text that appears at the bottom of the PDF..."
+                rows={6}
+                className="font-mono text-sm"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Orders JSON Export/Import */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Save className="h-5 w-5 text-primary" />
+              <CardTitle>Παραγγελίες (JSON)</CardTitle>
+            </div>
+            <CardDescription>
+              Εξαγωγή/Εισαγωγή όλων των παραγγελιών σε μορφή JSON.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button 
+                onClick={async () => {
+                  try {
+                    const orders = await storage.getAllOrders();
+                    const blob = new Blob([JSON.stringify(orders, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `orders-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    toast.success('Έγινε εξαγωγή παραγγελιών σε JSON');
+                  } catch (e) {
+                    console.error(e);
+                    toast.error('Αποτυχία εξαγωγής παραγγελιών');
+                  }
+                }} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export JSON
+              </Button>
+              <Button 
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.json';
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (!file) return;
+                    try {
+                      const text = await file.text();
+                      const orders = JSON.parse(text);
+                      if (!Array.isArray(orders)) {
+                        throw new Error('JSON must be an array of orders');
+                      }
+                      for (const ord of orders) {
+                        const { supplier_id, status, custom_text } = ord || {};
+                        if (!supplier_id || !status) continue;
+                        await storage.createOrder({
+                          supplier_id,
+                          status,
+                          custom_text,
+                        });
+                      }
+                      toast.success('Έγινε εισαγωγή παραγγελιών από JSON');
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Αποτυχία εισαγωγής παραγγελιών');
+                    }
+                  };
+                  input.click();
+                }} 
+                variant="outline" 
+                className="w-full"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import JSON
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Η εισαγωγή δεν αντικαθιστά υπάρχοντα δεδομένα και δεν διατηρεί τα ίδια IDs.
+            </p>
           </CardContent>
         </Card>
 
