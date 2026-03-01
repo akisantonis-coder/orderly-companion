@@ -23,17 +23,41 @@ interface Order {
   items?: OrderItem[];
 }
 
-// Load settings from localStorage
-function getSettings(): AppSettings {
+// Load settings from Dexie Database
+async function getSettings(): Promise<AppSettings> {
+  try {
+    const db = (await import('@/lib/db')).db;
+    const settings = await db.settings.get('app');
+    
+    if (settings) {
+      return {
+        company: {
+          name: '',
+          address: '',
+          phone: '',
+          email: '',
+          taxId: '',
+          website: '',
+        },
+        pdfIntroduction: settings.pdfIntroduction || '',
+        pdfFooter: settings.pdfFooter || '',
+      };
+    }
+  } catch (e) {
+    console.error('Error loading settings from Dexie:', e);
+  }
+  
+  // Fallback to localStorage for backward compatibility
   const SETTINGS_KEY = 'app_settings';
   const stored = localStorage.getItem(SETTINGS_KEY);
   if (stored) {
     try {
       return JSON.parse(stored);
     } catch (e) {
-      console.error('Error parsing settings:', e);
+      console.error('Error parsing localStorage settings:', e);
     }
   }
+  
   return {
     company: {
       name: '',
@@ -43,19 +67,20 @@ function getSettings(): AppSettings {
       taxId: '',
       website: '',
     },
-    defaultOrderText: '',
+    pdfIntroduction: '',
+    pdfFooter: '',
   };
 }
 
 // Generate order text from template
-export function generateOrderText(order: Order, customText?: string): string {
-  const settings = getSettings();
+export async function generateOrderText(order: Order, customText?: string): Promise<string> {
+  const settings = await getSettings();
   const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
   
-  // Use custom text if provided, otherwise use default template
-  let text = customText !== undefined ? customText : (settings.defaultOrderText || '');
+  // Use custom text if provided, otherwise use pdfIntroduction
+  let text = customText !== undefined ? customText : settings.pdfIntroduction;
   
-  // If text is still empty, use fallback template
+  // If text is still empty, use simple fallback
   if (!text.trim()) {
     text = `Γεια σας,
 
@@ -63,35 +88,62 @@ export function generateOrderText(order: Order, customText?: string): string {
 
 [ΕΙΔΗ]
 
-Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
+Παρακαλούμε επιβεβαιώστε την παραλαβή.
 
 Ευχαριστούμε,
-[ΕΤΑΙΡΙΑ]`;
+${settings.company.name || 'Εταιρία'}`;
   }
   
   // Generate items list
   const itemsList = order.items?.map((item) => {
-    const displayUnit = item.unit || item.product.unit;
-    return `• ${item.product.name}: ${item.quantity} ${getFullUnitName(displayUnit, item.quantity)}`;
+    const displayUnit = item.unit || item.product?.unit;
+    return `• ${item.product?.name || 'Άγνωστο Προϊόν'}: ${item.quantity} ${getFullUnitName(displayUnit, item.quantity)}`;
   }).join('\n') || '';
   
   // Replace placeholders
   text = text.replace(/\[ΕΙΔΗ\]/g, itemsList);
-  text = text.replace(/\[ΕΤΑΙΡΙΑ\]/g, settings.company.name || 'Εταιρία');
   
   return text;
 }
 
 // Create a hidden element for PDF generation with Greek support
-function createPDFElement(order: Order, customText?: string): HTMLDivElement {
-  const settings = getSettings();
+async function createPDFElement(order: Order, customText?: string): Promise<HTMLDivElement> {
+  console.log('Order data in PDF element:', order);
+  
+  const settings = await getSettings();
+  console.log('PDF settings in createPDFElement:', settings);
+  
+  // Load company data from correct localStorage key
+  const companyData = JSON.parse(localStorage.getItem('orderly_company_settings') || '{}');
+  console.log('Company data from localStorage in PDF:', companyData);
+  
+  // Use fallback if no company data found
+  const companyInfo = companyData.name ? companyData : {
+    name: 'Παρακαλώ συμπληρώστε τα στοιχεία εταιρείας στις Ρυθμίσεις',
+    address: '',
+    phone: '',
+    email: '',
+    taxId: '',
+    website: ''
+  };
+  
   const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
-  const orderText = generateOrderText(order, customText);
+  const orderText = await generateOrderText(order, customText);
   
   // Format order text with line breaks
   const formattedText = orderText.split('\n').map(line => 
     line.trim() ? `<p style="margin: 8px 0; line-height: 1.6;">${line.replace(/•/g, '&bull;')}</p>` : '<p style="margin: 4px 0;"></p>'
   ).join('');
+  
+  // Format PDF Introduction if exists
+  const formattedIntro = settings.pdfIntroduction ? settings.pdfIntroduction.split('\n').map(line => 
+    line.trim() ? `<p style="margin: 8px 0; line-height: 1.6; font-style: italic;">${line.replace(/•/g, '&bull;')}</p>` : '<p style="margin: 4px 0;"></p>'
+  ).join('') : '';
+  
+  // Format PDF Footer if exists
+  const formattedFooter = settings.pdfFooter ? settings.pdfFooter.split('\n').map(line => 
+    line.trim() ? `<p style="margin: 8px 0; line-height: 1.6; font-size: 12px; color: #666;">${line.replace(/•/g, '&bull;')}</p>` : '<p style="margin: 4px 0;"></p>'
+  ).join('') : '';
   
   const container = document.createElement('div');
   container.style.cssText = `
@@ -104,50 +156,62 @@ function createPDFElement(order: Order, customText?: string): HTMLDivElement {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   `;
   
-  // Company header section
-  const companyHeader = settings.company.name ? `
+  // Company header section - use localStorage data with fallback
+  const companyHeader = companyInfo.name ? `
     <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
-      <h2 style="font-size: 20px; font-weight: bold; color: #1e3a5f; margin: 0 0 8px 0;">
-        ${settings.company.name}
+      <h2 style="font-size: 16px; font-weight: bold; color: #1e3a5f; margin: 0 0 8px 0;">
+        ${companyInfo.name}
       </h2>
-      ${settings.company.address ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">${settings.company.address}</p>` : ''}
-      ${settings.company.phone ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">Τηλ: ${settings.company.phone}</p>` : ''}
-      ${settings.company.email ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">Email: ${settings.company.email}</p>` : ''}
-      ${settings.company.taxId ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">ΑΦΜ: ${settings.company.taxId}</p>` : ''}
+      ${companyInfo.address ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">${companyInfo.address}</p>` : ''}
+      ${companyInfo.phone ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">Τηλ: ${companyInfo.phone}</p>` : ''}
+      ${companyInfo.email ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">Email: ${companyInfo.email}</p>` : ''}
+      ${companyInfo.taxId ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">ΑΦΜ: ${companyInfo.taxId}</p>` : ''}
     </div>
   ` : '';
   
   container.innerHTML = `
     ${companyHeader}
     <div style="margin-bottom: 24px;">
-      <h1 style="font-size: 24px; font-weight: bold; color: #1e3a5f; margin: 0 0 8px 0;">
-        Παραγγελία - ${order.supplier.name}
-      </h1>
-      <p style="font-size: 14px; color: #666; margin: 0;">
-        Ημερομηνία: ${date}
-      </p>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+        <div style="flex: 1;">
+          <h1 style="font-size: 20px; font-weight: bold; color: #1e3a5f; margin: 0 0 8px 0;">
+            Παραγγελία: ${companyInfo.name || 'Άγνωστη Εταιρεία'}
+          </h1>
+          <p style="font-size: 14px; color: #666; margin: 0;">
+            Προς: ${order?.supplier?.name || 'Άγνωστος Προμηθευτής'}
+          </p>
+          <p style="font-size: 14px; color: #666; margin: 4px 0 0 0;">
+            Ημερομηνία: ${date}
+          </p>
+        </div>
+        <div style="text-align: right; font-size: 12px; color: #666;">
+          <div>${format(new Date(), 'd MMMM yyyy', { locale: el })}</div>
+        </div>
+      </div>
     </div>
     
-    <div style="margin-bottom: 24px; padding: 16px; background: #f8f9fa; border-radius: 8px; font-size: 14px; line-height: 1.6; color: #333;">
-      ${formattedText}
+    ${formattedIntro ? `
+    <div style="margin-bottom: 24px; padding: 16px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
+      ${formattedIntro}
     </div>
+    ` : ''}
     
-    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px; border: 1px solid #e5e7eb;">
       <thead>
         <tr style="background: #1e3a5f; color: white;">
-          <th style="padding: 12px 16px; text-align: left; font-weight: 600;">Είδος</th>
-          <th style="padding: 12px 16px; text-align: right; font-weight: 600; width: 100px;">Ποσότητα</th>
-          <th style="padding: 12px 16px; text-align: left; font-weight: 600; width: 120px;">Μονάδα</th>
+          <th style="padding: 12px 16px; text-align: left; font-weight: 600; border: 1px solid #e5e7eb;">Είδος</th>
+          <th style="padding: 12px 16px; text-align: right; font-weight: 600; width: 100px; border: 1px solid #e5e7eb;">Ποσότητα</th>
+          <th style="padding: 12px 16px; text-align: left; font-weight: 600; width: 120px; border: 1px solid #e5e7eb;">Μονάδα</th>
         </tr>
       </thead>
       <tbody>
         ${order.items?.map((item, index) => {
-          const displayUnit = item.unit || item.product.unit;
+          const displayUnit = item.unit || item.product?.unit;
           return `
-          <tr style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'}; border-bottom: 1px solid #e5e7eb;">
-            <td style="padding: 12px 16px;">${item.product.name}</td>
-            <td style="padding: 12px 16px; text-align: right; font-weight: 500;">${item.quantity}</td>
-            <td style="padding: 12px 16px;">${getFullUnitName(displayUnit, item.quantity)}</td>
+          <tr style="background: ${index % 2 === 0 ? '#f8f9fa' : 'white'};">
+            <td style="padding: 12px 16px; border: 1px solid #e5e7eb;">${item.product?.name || 'Άγνωστο Προϊόν'}</td>
+            <td style="padding: 12px 16px; text-align: right; font-weight: 500; border: 1px solid #e5e7eb;">${item.quantity}</td>
+            <td style="padding: 12px 16px; border: 1px solid #e5e7eb;">${getFullUnitName(displayUnit, item.quantity)}</td>
           </tr>
         `;}).join('') || ''}
       </tbody>
@@ -158,6 +222,12 @@ function createPDFElement(order: Order, customText?: string): HTMLDivElement {
         Σύνολο ειδών: ${order.items?.length || 0}
       </p>
     </div>
+    
+    ${formattedFooter ? `
+    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+      ${formattedFooter}
+    </div>
+    ` : ''}
   `;
   
   return container;
@@ -165,10 +235,13 @@ function createPDFElement(order: Order, customText?: string): HTMLDivElement {
 
 export async function exportOrderToPDF(order: Order, customText?: string): Promise<void> {
   // Create the element for rendering
-  const element = createPDFElement(order, customText);
+  const element = await createPDFElement(order, customText);
   document.body.appendChild(element);
   
   try {
+    // Wait for DOM to render the element
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Use html2canvas to capture the element with proper Greek support
     const canvas = await html2canvas(element, {
       scale: 2,
@@ -203,7 +276,7 @@ export async function exportOrderToPDF(order: Order, customText?: string): Promi
     }
     
     // Save
-    const fileName = `Παραγγελία_${order.supplier.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    const fileName = `Παραγγελία_${order?.supplier?.name?.replace(/\s+/g, '_') || 'Unknown'}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
     pdf.save(fileName);
   } finally {
     // Clean up
@@ -211,10 +284,10 @@ export async function exportOrderToPDF(order: Order, customText?: string): Promi
   }
 }
 
-export function exportOrderToExcel(order: Order, customText?: string): void {
-  const settings = getSettings();
+export async function exportOrderToExcel(order: Order, customText?: string): Promise<void> {
+  const settings = await getSettings();
   const date = format(new Date(), 'd MMMM yyyy, HH:mm', { locale: el });
-  const orderText = generateOrderText(order, customText);
+  const orderText = await generateOrderText(order, customText);
   
   // Create worksheet data with proper structure
   const wsData: any[] = [];
@@ -230,16 +303,16 @@ export function exportOrderToExcel(order: Order, customText?: string): void {
   }
   
   wsData.push(
-    ['Παραγγελία - ' + order.supplier.name],
+    ['Παραγγελία - ' + (order?.supplier?.name || 'Άγνωστος Προμηθευτής')],
     ['Ημερομηνία: ' + date],
     [],
     ...orderText.split('\n').filter(line => line.trim()).map(line => [line]),
     [],
     ['Είδος', 'Ποσότητα', 'Μονάδα'],
     ...(order.items?.map(item => {
-      const displayUnit = item.unit || item.product.unit;
+      const displayUnit = item.unit || item.product?.unit;
       return [
-        item.product.name,
+        item.product?.name || 'Άγνωστο Προϊόν',
         item.quantity,
         getFullUnitName(displayUnit, item.quantity)
       ];

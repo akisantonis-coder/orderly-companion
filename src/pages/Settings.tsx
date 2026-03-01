@@ -12,19 +12,26 @@ import { toast } from 'sonner';
 import { Settings as SettingsIcon, Building2, FileText, Save, Download, Upload } from 'lucide-react';
 
 export default function Settings() {
-  const { settings, isLoading, updateCompany, updateDefaultOrderText } = useSettings();
+  const { settings, isLoading, updateCompany } = useSettings();
   
   const [company, setCompany] = useState(settings.company);
-  const [defaultText, setDefaultText] = useState(settings.defaultOrderText);
   const [hasChanges, setHasChanges] = useState(false);
   const [pdfIntroduction, setPdfIntroduction] = useState('');
   const [pdfFooter, setPdfFooter] = useState('');
 
   useEffect(() => {
     setCompany(settings.company);
-    setDefaultText(settings.defaultOrderText);
     setHasChanges(false);
   }, [settings]);
+
+  // Load company data from orderly_company_settings key
+  useEffect(() => {
+    const companyData = localStorage.getItem('orderly_company_settings');
+    if (companyData) {
+      const parsed = JSON.parse(companyData);
+      setCompany(parsed);
+    }
+  }, []);
 
   // Load PDF settings from Dexie
   useEffect(() => {
@@ -62,14 +69,8 @@ export default function Settings() {
     setHasChanges(true);
   };
 
-  const handleTextChange = (value: string) => {
-    setDefaultText(value);
-    setHasChanges(true);
-  };
-
   const handleSave = () => {
     updateCompany(company);
-    updateDefaultOrderText(defaultText);
     setHasChanges(false);
     toast.success('Οι ρυθμίσεις αποθηκεύτηκαν');
   };
@@ -257,35 +258,6 @@ export default function Settings() {
                   placeholder="https://example.com"
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Default Order Text */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <CardTitle>Προεπιλεγμένο Κείμενο Παραγγελίας</CardTitle>
-            </div>
-            <CardDescription>
-              Το κείμενο που θα εμφανίζεται στα PDF και emails. Χρησιμοποιήστε [ΕΙΔΗ] για τη λίστα ειδών και [ΕΤΑΙΡΙΑ] για το όνομά σας.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="default-text">Κείμενο</Label>
-              <Textarea
-                id="default-text"
-                value={defaultText}
-                onChange={(e) => handleTextChange(e.target.value)}
-                placeholder="Προεπιλεγμένο κείμενο παραγγελίας..."
-                rows={12}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Μεταβλητές: [ΕΙΔΗ] = λίστα ειδών, [ΕΤΑΙΡΙΑ] = όνομα εταιρίας
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const SETTINGS_KEY = 'app_settings';
+const COMPANY_KEY = 'orderly_company_settings';
 
 export interface CompanySettings {
   name: string;
@@ -13,7 +14,8 @@ export interface CompanySettings {
 
 export interface AppSettings {
   company: CompanySettings;
-  defaultOrderText: string;
+  pdfIntroduction: string;
+  pdfFooter: string;
 }
 
 const defaultSettings: AppSettings = {
@@ -25,16 +27,8 @@ const defaultSettings: AppSettings = {
     taxId: '',
     website: '',
   },
-  defaultOrderText: `Γεια σας,
-
-Θα θέλαμε να παραγγείλουμε τα παρακάτω είδη:
-
-[ΕΙΔΗ]
-
-Παρακαλούμε επιβεβαιώστε την παραλαβή και ενημερώστε μας για τυχόν ελλείψεις.
-
-Ευχαριστούμε,
-[ΕΤΑΙΡΙΑ]`,
+  pdfIntroduction: '',
+  pdfFooter: '',
 };
 
 export function useSettings() {
@@ -83,11 +77,21 @@ export function useSettings() {
   }, []);
 
   const updateCompany = useCallback((company: Partial<CompanySettings>) => {
+    // Load existing company data
+    const existingData = localStorage.getItem(COMPANY_KEY);
+    const existing = existingData ? JSON.parse(existingData) : {};
+    
+    // Merge with new data
+    const updated = {
+      ...existing,
+      ...company,
+    };
+    
+    // Save to company-specific key
+    localStorage.setItem(COMPANY_KEY, JSON.stringify(updated));
+    
+    // Also update the main settings for compatibility
     updateSettings({ company });
-  }, [updateSettings]);
-
-  const updateDefaultOrderText = useCallback((text: string) => {
-    updateSettings({ defaultOrderText: text });
   }, [updateSettings]);
 
   return {
@@ -95,6 +99,5 @@ export function useSettings() {
     isLoading,
     updateSettings,
     updateCompany,
-    updateDefaultOrderText,
   };
 }
